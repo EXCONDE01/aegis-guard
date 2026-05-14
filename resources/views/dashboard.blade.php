@@ -1,31 +1,102 @@
-<div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <x-status-card title="System Health" value="Stable" color="text-green-500" icon="heroicon-o-cpu-chip" />
-        <x-status-card title="Active Clients" value="24 / 40" color="text-blue-500" icon="heroicon-o-users" />
-        <x-status-card title="Threats Blocked" value="12" color="text-red-500" icon="heroicon-o-shield-check" />
-        <x-status-card title="Bandwidth" value="120 Mbps" color="text-purple-500" icon="heroicon-o-arrow-trending-up" />
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aegis-Guard | Command Center</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="flex h-screen bg-[#F8FAFC] font-sans text-slate-900 overflow-hidden">
+    <div class="w-64 bg-[#0F172A] text-white flex flex-col shadow-2xl z-50">
+        <div class="p-6">
+            <h2 class="text-2xl font-black text-indigo-400">Aegis-Guard</h2>
+            <p class="text-[10px] text-slate-500 uppercase font-bold tracking-widest mt-1">LSPU Campus</p>
+        </div>
+        <nav class="flex-1 p-4 space-y-2 text-sm font-medium">
+            <a href="{{ route('dashboard') }}" class="flex items-center gap-3 p-3 bg-indigo-600/10 text-indigo-400 rounded-xl ring-1 ring-indigo-500/20">
+              📡 Real-Time Map
+            </a>
+            <a href="{{ route('admin.history') }}" class="flex items-center gap-3 p-3 hover:bg-slate-800/50 rounded-xl text-slate-400 transition-all">
+              📜 Hazard History Logs
+            </a>
+        </nav>
+        <div class="p-6 bg-[#0B1120] text-xs font-bold text-white flex items-center gap-2">
+            <span class="h-2 w-2 rounded-full bg-green-500 animate-pulse"></span> 
+            Campus Director
+        </div>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div class="lg:col-span-2 bg-gray-800 border border-gray-700 overflow-hidden shadow-sm sm:rounded-lg p-6">
-            <h3 class="text-white font-bold mb-4">Academic Lab 01 - Device Map</h3>
-            <div class="grid grid-cols-5 gap-4">
-                @for ($i = 1; $i <= 20; $i++)
-                    <div class="p-4 bg-gray-900 border border-gray-700 rounded-lg text-center">
-                        <span class="block text-xs text-gray-400">PC-{{ str_pad($i, 2, '0', STR_PAD_LEFT) }}</span>
-                        <div class="h-2 w-2 rounded-full bg-green-500 mx-auto mt-2 animate-pulse"></div>
+    <div class="flex-1 overflow-y-auto">
+        <header class="bg-white/60 backdrop-blur-xl border-b border-slate-200 p-8 sticky top-0 z-30">
+            <h1 class="text-3xl font-black text-slate-800 tracking-tight">Command Center</h1>
+            <p class="text-sm text-slate-500 font-semibold mt-1">Live Environmental Monitoring</p>
+        </header>
+
+        <main class="p-8 space-y-8 pb-20">
+            <div class="bg-white p-6 rounded-3xl border border-red-100 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4 ring-1 ring-red-50">
+                <div class="flex items-center gap-5">
+                  <div class="w-12 h-12 bg-red-50 rounded-2xl flex items-center justify-center text-red-600 shrink-0">
+                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2.25m0 0v2.25m0-2.25h2.25m-4.5 0h2.25m-2.25 5.25h4.5m-4.5-10.5h4.5M12 2.25v1.5m0 16.5v1.5m-7.794-7.86l-1.06-1.06m17.708 0l-1.06 1.06M3 12h1.5m15 0h1.5m-3.206-7.86l1.06-1.06M6.354 18.354l-1.06 1.06" /></svg>
+                  </div>
+                  <div>
+                    <h3 class="font-black text-slate-800 text-lg">Emergency Broadcast Panel</h3>
+                    <p class="text-sm text-slate-500 font-medium mt-1">Manually override gateway to dispatch emergency alerts to all LSPU staff.</p>
+                  </div>
+                </div>
+                <button class="w-full md:w-auto bg-red-600 hover:bg-red-700 text-white font-black uppercase text-xs px-6 py-3 rounded-xl shadow-lg shadow-red-600/30 transition-all">
+                  Dispatch Alert
+                </button>
+            </div>
+
+            <div class="flex justify-between items-end mb-6">
+                <h2 class="text-xl font-black text-slate-800">Campus Sensor Map</h2>
+                <span class="px-3 py-1 bg-slate-200/50 text-slate-500 text-[10px] font-black uppercase tracking-widest rounded-full">Live Database Feed</span>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+                @foreach($nodes as $node)
+                    @php 
+                        $latestLog = $node->logs->first(); 
+                        $isCritical = $node->status == 'CRITICAL';
+                        $isWarning = $node->status == 'WARNING';
+                    @endphp
+
+                    <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200/60 transition-all hover:shadow-xl {{ $isCritical ? 'ring-2 ring-red-500 bg-red-50/20' : ($isWarning ? 'ring-2 ring-amber-400 bg-amber-50/20' : '') }}">
+                      <div class="flex justify-between items-start mb-8">
+                        <div>
+                          <h3 class="text-xl font-black text-slate-800">{{ $node->location_name }}</h3>
+                          <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">{{ $node->specific_area }}</p>
+                        </div>
+                        <span class="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest {{ $isCritical ? 'bg-red-600 text-white animate-pulse' : ($isWarning ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-500') }}">
+                            {{ $node->status }}
+                        </span>
+                      </div>
+
+                      <div class="space-y-6">
+                        <div>
+                          <div class="flex justify-between items-end mb-2">
+                            <span class="text-[10px] font-black uppercase tracking-widest text-slate-500">Temperature</span>
+                            <span class="text-lg font-black text-slate-800">{{ $latestLog->temperature ?? '--' }} °C</span>
+                          </div>
+                          <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                            <div class="h-full bg-indigo-500 transition-all duration-500" style="width: {{ $latestLog ? min(($latestLog->temperature / 50) * 100, 100) : 0 }}%"></div>
+                          </div>
+                        </div>
+
+                        <div>
+                          <div class="flex justify-between items-end mb-2">
+                            <span class="text-[10px] font-black uppercase tracking-widest text-slate-500">Smoke Level</span>
+                            <span class="text-lg font-black text-slate-800">{{ $latestLog->smoke_level ?? '--' }} %</span>
+                          </div>
+                          <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                            <div class="h-full bg-slate-400 transition-all duration-500" style="width: {{ $latestLog ? min(($latestLog->smoke_level / 30) * 100, 100) : 0 }}%"></div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                @endfor
+                @endforeach
             </div>
-        </div>
-
-        <div class="bg-black border border-green-900 overflow-hidden shadow-sm sm:rounded-lg p-6 font-mono text-xs">
-            <h3 class="text-green-500 font-bold mb-4 uppercase">Live Threat Feed</h3>
-            <div class="space-y-2">
-                <p class="text-gray-400">[14:22:01] <span class="text-red-500">BLOCK</span> IP 192.168.20.12 -> Malicious Domain</p>
-                <p class="text-gray-400">[14:23:45] <span class="text-green-500">INFO</span> User 'Student_01' Logged In</p>
-                <p class="text-gray-400">[14:25:12] <span class="text-yellow-500">WARN</span> High CPU Usage on Gateway</p>
-            </div>
-        </div>
+        </main>
     </div>
-</div>
+</body>
+</html>
