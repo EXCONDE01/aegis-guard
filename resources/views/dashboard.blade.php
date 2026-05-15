@@ -19,6 +19,9 @@
             <a href="{{ route('admin.history') }}" class="flex items-center gap-3 p-3 hover:bg-slate-800/50 rounded-xl text-slate-400 transition-all">
               📜 Hazard History Logs
             </a>
+            <a href="{{ route('admin.contacts') }}" class="flex items-center gap-3 p-3 hover:bg-slate-800/50 rounded-xl text-slate-400 transition-all">
+              📞 Alert Contacts
+            </a>
         </nav>
         <div class="p-6 bg-[#0B1120] text-xs font-bold text-white flex items-center gap-2">
             <span class="h-2 w-2 rounded-full bg-green-500 animate-pulse"></span> 
@@ -33,6 +36,16 @@
         </header>
 
         <main class="p-8 space-y-8 pb-20">
+            @if(session('emergency_success'))
+            <div class="mb-8 bg-red-600 text-white p-4 rounded-2xl flex items-center gap-4 shadow-xl shadow-red-600/30 animate-pulse">
+                <svg class="w-8 h-8 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                <div>
+                    <h4 class="font-black tracking-widest uppercase text-sm">System Broadcast Active</h4>
+                    <p class="text-xs font-medium opacity-90">{{ session('emergency_success') }}</p>
+                </div>
+            </div>
+            @endif
+
             <div class="bg-white p-6 rounded-3xl border border-red-100 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4 ring-1 ring-red-50">
                 <div class="flex items-center gap-5">
                   <div class="w-12 h-12 bg-red-50 rounded-2xl flex items-center justify-center text-red-600 shrink-0">
@@ -43,12 +56,15 @@
                     <p class="text-sm text-slate-500 font-medium mt-1">Manually override gateway to dispatch emergency alerts to all LSPU staff.</p>
                   </div>
                 </div>
-                <button class="w-full md:w-auto bg-red-600 hover:bg-red-700 text-white font-black uppercase text-xs px-6 py-3 rounded-xl shadow-lg shadow-red-600/30 transition-all">
-                  Dispatch Alert
-                </button>
+                <form method="POST" action="{{ route('admin.dispatch') }}" class="w-full md:w-auto">
+                    @csrf
+                    <button type="submit" onclick="return confirm('WARNING: Are you sure you want to trigger a campus-wide evacuation alert?')" class="w-full bg-red-600 hover:bg-red-700 text-white font-black uppercase text-xs px-6 py-3 rounded-xl shadow-lg shadow-red-600/30 transition-all">
+                      Dispatch Alert
+                    </button>
+                </form>
             </div>
 
-            <div class="flex justify-between items-end mb-6">
+            <div class="flex justify-between items-end mb-6 mt-4">
                 <h2 class="text-xl font-black text-slate-800">Campus Sensor Map</h2>
                 <span class="px-3 py-1 bg-slate-200/50 text-slate-500 text-[10px] font-black uppercase tracking-widest rounded-full">Live Database Feed</span>
             </div>
