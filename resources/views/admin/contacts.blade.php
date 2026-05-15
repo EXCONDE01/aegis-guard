@@ -6,72 +6,98 @@
     <title>Aegis-Guard | Alert Contacts</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="flex h-screen bg-[#F8FAFC] font-sans text-slate-900 overflow-hidden">
-    <div class="w-64 bg-[#0F172A] text-white flex flex-col shadow-2xl z-50">
+<body class="flex h-screen bg-slate-950 font-sans text-slate-300 overflow-hidden">
+    
+    <div class="w-64 bg-slate-900 border-r border-slate-800 flex flex-col z-50">
         <div class="p-6">
-            <h2 class="text-2xl font-black text-indigo-400">Aegis-Guard</h2>
-            <p class="text-[10px] text-slate-500 uppercase font-bold tracking-widest mt-1">LSPU Campus</p>
+            <h2 class="text-xl font-bold text-white tracking-tight">Aegis-Guard</h2>
+            <p class="text-[10px] text-slate-500 uppercase font-semibold tracking-widest mt-1">Command Center</p>
         </div>
-        <nav class="flex-1 p-4 space-y-2 text-sm font-medium">
-            <a href="{{ route('dashboard') }}" class="flex items-center gap-3 p-3 hover:bg-slate-800/50 rounded-xl text-slate-400 transition-all">
-              📡 Real-Time Map
-            </a>
-            <a href="{{ route('admin.history') }}" class="flex items-center gap-3 p-3 hover:bg-slate-800/50 rounded-xl text-slate-400 transition-all">
-              📜 Hazard History Logs
-            </a>
-            <a href="{{ route('admin.contacts') }}" class="flex items-center gap-3 p-3 bg-indigo-600/10 text-indigo-400 rounded-xl ring-1 ring-indigo-500/20">
-              📞 Alert Contacts
-            </a>
+        <nav class="flex-1 px-4 space-y-1 text-sm font-medium overflow-y-auto">
+            <div class="mb-4">
+                <p class="px-3 text-[10px] font-bold tracking-widest text-slate-600 uppercase mb-2">Monitoring</p>
+                <a href="{{ route('dashboard') }}" class="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-800/50 rounded-lg text-slate-400 hover:text-slate-200 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
+                    Real-Time Map
+                </a>
+                <a href="{{ route('admin.history') }}" class="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-800/50 rounded-lg text-slate-400 hover:text-slate-200 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    Hazard History
+                </a>
+                <a href="{{ route('admin.contacts') }}" class="flex items-center gap-3 px-3 py-2.5 bg-indigo-500/10 text-indigo-400 rounded-lg transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                    Alert Contacts
+                </a>
+            </div>
+
+            @if(auth()->check() && auth()->user()->role === 'admin')
+            <div>
+                <p class="px-3 text-[10px] font-bold tracking-widest text-slate-600 uppercase mb-2 mt-6">System Admin</p>
+                <a href="{{ route('admin.nodes') }}" class="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-800/50 rounded-lg text-slate-400 hover:text-slate-200 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" /></svg>
+                    Hardware Nodes
+                </a>
+            </div>
+            @endif
         </nav>
-        <div class="p-6 bg-[#0B1120] text-xs font-bold text-white flex items-center gap-2">
-            <span class="h-2 w-2 rounded-full bg-green-500 animate-pulse"></span> 
-            Campus Director
+        
+        <div class="p-4 bg-slate-950/50 text-xs font-medium text-slate-400 border-t border-slate-800 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <span class="h-2 w-2 rounded-full {{ auth()->check() && auth()->user()->role === 'admin' ? 'bg-indigo-500' : 'bg-emerald-500' }}"></span>
+                {{ auth()->check() ? auth()->user()->name : 'Command Center' }}
+            </div>
+            @if(auth()->check())
+            <form method="POST" action="{{ route('logout') }}">
+                @csrf
+                <button type="submit" class="hover:text-white transition-colors">Logout</button>
+            </form>
+            @endif
         </div>
     </div>
 
     <div class="flex-1 flex flex-col h-full overflow-y-auto">
-        <header class="bg-white/60 backdrop-blur-xl border-b border-slate-200 p-8 sticky top-0 z-30">
-            <h1 class="text-3xl font-black text-slate-800 tracking-tight">Alert Contacts Management</h1>
-            <p class="text-sm text-slate-500 font-semibold mt-1">Configure automated SMS recipients for emergency broadcasts.</p>
+        <header class="bg-slate-950/80 backdrop-blur-sm border-b border-slate-800 p-8 sticky top-0 z-30">
+            <h1 class="text-2xl font-bold text-white">Alert Contacts</h1>
+            <p class="text-sm text-slate-500 mt-1">Manage personnel authorized to receive automated SMS alerts.</p>
         </header>
 
-        <main class="p-8 space-y-8 pb-20 max-w-6xl">
+        <main class="p-8 space-y-8 pb-20 max-w-7xl mx-auto w-full">
             @if(session('success'))
-            <div class="bg-green-100 border border-green-200 text-green-700 px-4 py-3 rounded-xl flex items-center gap-3">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
-                <span class="text-sm font-bold">{{ session('success') }}</span>
+            <div class="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 p-4 rounded-xl flex items-center gap-3">
+                <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                <span class="text-sm font-medium">{{ session('success') }}</span>
             </div>
             @endif
 
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200/60 lg:col-span-1 h-fit">
-                    <h3 class="font-black text-slate-800 text-lg mb-6">Register Personnel</h3>
+                <div class="bg-slate-900 p-6 rounded-2xl border border-slate-800 lg:col-span-1 h-fit shadow-sm">
+                    <h3 class="font-bold text-white text-base mb-5">Register Personnel</h3>
                     <form action="{{ route('admin.contacts.store') }}" method="POST" class="space-y-4">
                         @csrf
                         <div>
-                            <label class="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Full Name</label>
-                            <input type="text" name="name" required class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm rounded-xl focus:ring-indigo-500 focus:border-indigo-500 block p-3" placeholder="e.g. John Doe">
+                            <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">Full Name</label>
+                            <input type="text" name="name" required class="w-full bg-slate-950 border border-slate-700 text-white text-sm rounded-lg focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 block p-3 transition-colors" placeholder="e.g. John Doe">
                         </div>
                         <div>
-                            <label class="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Role / Designation</label>
-                            <input type="text" name="role" required class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm rounded-xl focus:ring-indigo-500 focus:border-indigo-500 block p-3" placeholder="e.g. Facility Manager">
+                            <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">Role / Designation</label>
+                            <input type="text" name="role" required class="w-full bg-slate-950 border border-slate-700 text-white text-sm rounded-lg focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 block p-3 transition-colors" placeholder="e.g. Lab Technician">
                         </div>
                         <div>
-                            <label class="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Mobile Number</label>
-                            <input type="text" name="phone" required class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm rounded-xl focus:ring-indigo-500 focus:border-indigo-500 block p-3" placeholder="+639...">
+                            <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">Mobile Number</label>
+                            <input type="text" name="phone" required class="w-full bg-slate-950 border border-slate-700 text-white text-sm rounded-lg focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 block p-3 transition-colors" placeholder="+639...">
                         </div>
-                        <button type="submit" class="w-full text-white bg-indigo-600 hover:bg-indigo-700 focus:ring-4 focus:outline-none focus:ring-indigo-300 font-black uppercase text-xs rounded-xl px-5 py-3 text-center transition-all shadow-lg shadow-indigo-500/30">
+                        <button type="submit" class="w-full text-white bg-indigo-600 hover:bg-indigo-500 font-semibold text-sm rounded-lg px-5 py-3 text-center transition-colors mt-2">
                             Save Contact
                         </button>
                     </form>
                 </div>
 
-                <div class="bg-white rounded-3xl shadow-sm border border-slate-200/60 lg:col-span-2 overflow-hidden">
-                    <div class="p-6 border-b border-slate-100">
-                        <h3 class="font-black text-slate-800 text-lg">Active Directory</h3>
+                <div class="bg-slate-900 rounded-2xl border border-slate-800 lg:col-span-2 overflow-hidden shadow-sm h-fit">
+                    <div class="p-5 border-b border-slate-800">
+                        <h3 class="font-bold text-white text-base">Active Directory</h3>
                     </div>
-                    <table class="w-full text-left text-sm text-slate-600">
-                        <thead class="bg-slate-50 text-[10px] uppercase font-black tracking-widest text-slate-400 border-b border-slate-200">
+                    <table class="w-full text-left text-sm text-slate-400">
+                        <thead class="bg-slate-950/50 text-xs font-semibold text-slate-500 border-b border-slate-800">
                             <tr>
                                 <th class="px-6 py-4">Personnel</th>
                                 <th class="px-6 py-4">Contact Info</th>
@@ -79,26 +105,26 @@
                                 <th class="px-6 py-4 text-right">Action</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-slate-100">
+                        <tbody class="divide-y divide-slate-800">
                             @foreach($contacts as $contact)
-                            <tr class="hover:bg-slate-50 transition-colors">
+                            <tr class="hover:bg-slate-800/50 transition-colors">
                                 <td class="px-6 py-4">
-                                    <p class="font-bold text-slate-800">{{ $contact->name }}</p>
-                                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{{ $contact->role }}</p>
+                                    <p class="font-medium text-slate-200">{{ $contact->name }}</p>
+                                    <p class="text-xs text-slate-500 mt-0.5">{{ $contact->role }}</p>
                                 </td>
-                                <td class="px-6 py-4 font-mono text-xs font-bold text-slate-700">
+                                <td class="px-6 py-4 font-mono text-xs text-slate-300">
                                     {{ $contact->phone }}
                                 </td>
                                 <td class="px-6 py-4">
-                                    <span class="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest bg-green-100 text-green-600">
-                                        Receiving Alerts
+                                    <span class="px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-500">
+                                        Active
                                     </span>
                                 </td>
                                 <td class="px-6 py-4 text-right">
                                     <form action="{{ route('admin.contacts.destroy', $contact->id) }}" method="POST" onsubmit="return confirm('Remove this contact from the broadcast list?');">
                                         @csrf
                                         @method('DELETE')
-                                        <button type="submit" class="text-red-500 hover:text-red-700 font-black text-[10px] uppercase tracking-widest bg-red-50 hover:bg-red-100 px-3 py-2 rounded-lg transition-colors">
+                                        <button type="submit" class="text-red-400 hover:text-red-300 font-medium text-sm transition-colors">
                                             Remove
                                         </button>
                                     </form>
@@ -110,9 +136,8 @@
                     
                     @if($contacts->isEmpty())
                     <div class="p-12 text-center">
-                        <svg class="w-12 h-12 text-slate-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
-                        <h3 class="text-lg font-black text-slate-800">No personnel registered</h3>
-                        <p class="text-sm text-slate-500 mt-2 font-medium">Add a contact to ensure alerts are successfully dispatched.</p>
+                        <svg class="w-10 h-10 text-slate-600 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                        <p class="text-sm text-slate-500 font-medium">No personnel registered in the directory.</p>
                     </div>
                     @endif
                 </div>

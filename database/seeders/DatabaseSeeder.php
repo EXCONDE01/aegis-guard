@@ -8,16 +8,22 @@ use Illuminate\Support\Facades\Hash;
 
 class DatabaseSeeder extends Seeder
 {
-    /**
-     * Seed the application's database.
-     */
     public function run(): void
     {
-        // Create the official administrator account
+        // 1. Campus Director (Monitoring Tools Only)
         User::create([
-            'name' => 'System Director',
+            'name' => 'Campus Director',
             'email' => 'director@lspu.edu.ph',
-            'password' => Hash::make('adminlspu'), // Secure default password
+            'password' => Hash::make('adminlspu'),
+            'role' => 'director',
+        ]);
+
+        // 2. IT System Admin (Hardware Management Access)
+        User::create([
+            'name' => 'System Administrator',
+            'email' => 'admin@lspu.edu.ph',
+            'password' => Hash::make('AegisGuard2026!'),
+            'role' => 'admin',
         ]);
     }
 }

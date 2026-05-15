@@ -42,6 +42,7 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerateToken();
 
-        return redirect('/');
+        // Redirect back to the secure access terminal instead of the public dashboard
+        return redirect('/login');
     }
 }

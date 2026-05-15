@@ -29,7 +29,7 @@ class DashboardController extends Controller
 
     public function dispatchAlert()
     {
-        return redirect()->route('dashboard')->with('emergency_success', 'OVERRIDE ENGAGED: Emergency SMS notifications have been forcefully dispatched to all LSPU faculty and staff.');
+        return redirect()->route('dashboard')->with('emergency_success', 'OVERRIDE ENGAGED: Emergency SMS notifications have been forcefully dispatched to all personnel.');
     }
 
     // --- ALERT CONTACTS MANAGEMENT ---
@@ -58,5 +58,35 @@ class DashboardController extends Controller
         AlertContact::findOrFail($id)->delete();
 
         return redirect()->route('admin.contacts')->with('success', 'Contact removed from the emergency broadcast list.');
+    }
+
+    // --- NODE MANAGEMENT METHODS (SECURED FOR IT ADMIN ONLY) ---
+
+    public function nodes()
+    {
+        // RBAC SECURITY: Kick out non-admins
+        abort_if(auth()->user()->role !== 'admin', 403, 'Unauthorized Access: IT Operations Only.');
+
+        $nodes = Node::orderByRaw("location_name = 'New Unassigned Node' DESC")->latest()->get();
+        return view('admin.nodes', compact('nodes'));
+    }
+
+    public function updateNode(Request $request, $id)
+    {
+        // RBAC SECURITY: Kick out non-admins
+        abort_if(auth()->user()->role !== 'admin', 403, 'Unauthorized Access: IT Operations Only.');
+
+        $request->validate([
+            'location_name' => 'required|string|max:255',
+            'specific_area' => 'nullable|string|max:255',
+        ]);
+
+        $node = Node::findOrFail($id);
+        $node->update([
+            'location_name' => $request->location_name,
+            'specific_area' => $request->specific_area ?? 'General Area',
+        ]);
+
+        return redirect()->route('admin.nodes')->with('success', 'Sensor node configuration updated successfully.');
     }
 }
