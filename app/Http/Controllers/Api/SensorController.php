@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Node;
+use App\Models\Threshold;
 use Illuminate\Http\Request;
 
 class SensorController extends Controller {
+    
     public function store(Request $request) {
         $request->validate([
             'hardware_id' => 'required|string',
@@ -14,7 +16,7 @@ class SensorController extends Controller {
             'smoke' => 'required|numeric',
         ]);
 
-        // PLUG & PLAY: Automatically create node if it's new to the network [cite: 64, 71]
+        // Auto-register new nodes
         $node = Node::firstOrCreate(
             ['hardware_id' => $request->hardware_id],
             [
@@ -24,17 +26,20 @@ class SensorController extends Controller {
             ]
         );
 
-        // EVALUATE: Logic based on pre-configured safe thresholds [cite: 383, 567]
+        // Fetch the dynamic thresholds set by the IT Admin
+        $config = Threshold::first();
+
+        // Evaluate logic based on dynamic thresholds
         $status = 'SAFE';
-        if ($request->temp > 45 || $request->smoke > 15 || ($request->water ?? 0) > 10) { 
-            $status = 'CRITICAL'; // Trigger red hazard zone [cite: 385]
-        } elseif ($request->temp > 35) { 
+        if ($request->temp >= $config->temp_critical || $request->smoke >= $config->smoke_critical) { 
+            $status = 'CRITICAL';
+        } elseif ($request->temp >= $config->temp_warning || $request->smoke >= $config->smoke_warning) { 
             $status = 'WARNING'; 
         }
 
         $node->update(['status' => $status]);
 
-        // LOG: Save reading for post-disaster analysis [cite: 179, 300]
+        // Log reading
         $node->logs()->create([
             'temperature' => $request->temp,
             'smoke_level' => $request->smoke,
