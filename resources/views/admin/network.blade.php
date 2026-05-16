@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Aegis-Guard | Network & Routing Control</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
 <body class="flex h-screen bg-slate-950 font-sans text-slate-300 overflow-hidden">
     
@@ -83,15 +84,25 @@
             </div>
             @endif
 
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6"
+                 x-data="{ gateway: {{ json_encode($gateway) }} }"
+                 x-init="setInterval(() => {
+                     fetch('{{ route('admin.network.telemetry') }}')
+                     .then(res => res.json())
+                     .then(data => gateway = data)
+                 }, 2000)">
+                 
                 <div class="flex items-center justify-between mb-6">
                     <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-lg {{ $gateway['status'] == 'ONLINE' ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-500' : 'bg-red-500/10 border border-red-500/20 text-red-500' }} flex items-center justify-center">
+                        <div class="w-10 h-10 rounded-lg flex items-center justify-center transition-colors"
+                             :class="gateway.status === 'ONLINE' ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-500' : 'bg-red-500/10 border border-red-500/20 text-red-500'">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
                         </div>
                         <div>
                             <h3 class="font-bold text-white text-lg">OPNsense Security Gateway</h3>
-                            <p class="text-xs {{ $gateway['status'] == 'ONLINE' ? 'text-emerald-400' : 'text-red-400' }} font-mono mt-0.5">● {{ $gateway['status'] }}</p>
+                            <p class="text-xs font-mono mt-0.5 transition-colors" 
+                               :class="gateway.status === 'ONLINE' ? 'text-emerald-400' : 'text-red-400'"
+                               x-text="'● ' + gateway.status"></p>
                         </div>
                     </div>
                 </div>
@@ -99,19 +110,19 @@
                 <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
                     <div class="bg-slate-950 p-4 rounded-xl border border-slate-800">
                         <p class="text-[10px] font-bold tracking-widest text-slate-500 uppercase">CPU Load</p>
-                        <p class="text-xl font-mono text-white mt-1">{{ $gateway['cpu'] }}</p>
+                        <p class="text-xl font-mono text-white mt-1 transition-all" x-text="gateway.cpu"></p>
                     </div>
                     <div class="bg-slate-950 p-4 rounded-xl border border-slate-800">
                         <p class="text-[10px] font-bold tracking-widest text-slate-500 uppercase">Memory</p>
-                        <p class="text-xl font-mono text-white mt-1">{{ $gateway['ram'] }}</p>
+                        <p class="text-xl font-mono text-white mt-1 transition-all" x-text="gateway.ram"></p>
                     </div>
                     <div class="bg-slate-950 p-4 rounded-xl border border-slate-800">
                         <p class="text-[10px] font-bold tracking-widest text-slate-500 uppercase">Active Rules</p>
-                        <p class="text-xl font-mono text-indigo-400 mt-1">{{ $gateway['firewall_rules'] }}</p>
+                        <p class="text-xl font-mono text-indigo-400 mt-1" x-text="gateway.firewall_rules"></p>
                     </div>
                     <div class="bg-slate-950 p-4 rounded-xl border border-slate-800">
                         <p class="text-[10px] font-bold tracking-widest text-slate-500 uppercase">WAN Uplink</p>
-                        <p class="text-xl font-mono text-white mt-1">{{ $gateway['uplink'] }}</p>
+                        <p class="text-xl font-mono text-white mt-1" x-text="gateway.uplink"></p>
                     </div>
                 </div>
             </div>
