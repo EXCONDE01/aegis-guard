@@ -11,6 +11,7 @@ use App\Models\Vlan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage; // ADDED FOR BACKUPS
 
 class DashboardController extends Controller
 {
@@ -170,7 +171,6 @@ class DashboardController extends Controller
             $gateway = ['status' => 'OFFLINE - API DISCONNECTED', 'cpu' => '--', 'ram' => '--', 'uptime' => '--', 'uplink' => '--', 'firewall_rules' => '--'];
         }
 
-        // Fetch Live VLANs directly from OPNsense Hardware
         $vlans = collect();
         try {
             $vlanResponse = Http::withOptions(['verify' => false])
@@ -311,5 +311,67 @@ class DashboardController extends Controller
         }
 
         return redirect()->route('admin.network')->with('success', 'VLAN terminated and securely removed from the OPNsense routing table.');
+    }
+
+    // ==========================================
+    // MODULE 4: SYSTEM BACKUPS (IT PERSONNEL ONLY)
+    // ==========================================
+
+    public function showBackups()
+    {
+        abort_if(auth()->user()->role !== 'admin', 403, 'Unauthorized Access: IT Operations Only.');
+        
+        Storage::makeDirectory('backups');
+        $files = Storage::files('backups');
+
+        $backups = collect($files)->map(function ($file) {
+            return [
+                'name' => basename($file),
+                'size' => round(Storage::size($file) / 1048576, 2) . ' MB',
+                'timestamp' => Storage::lastModified($file),
+                'date' => date('M d, Y h:i A', Storage::lastModified($file))
+            ];
+        })->sortByDesc('timestamp')->values();
+
+        return view('admin.backups', compact('backups'));
+    }
+
+    public function generateBackup()
+    {
+        abort_if(auth()->user()->role !== 'admin', 403, 'Unauthorized Access: IT Operations Only.');
+
+        Storage::makeDirectory('backups');
+        $filename = "aegis_db_backup_" . now()->format('Y_m_d_His') . ".sql";
+        $path = Storage::path('backups/' . $filename);
+
+        $command = sprintf(
+            'mysqldump --user="%s" --password="%s" --host="%s" "%s" > "%s"',
+            env('DB_USERNAME'),
+            env('DB_PASSWORD'),
+            env('DB_HOST', '127.0.0.1'),
+            env('DB_DATABASE'),
+            $path
+        );
+
+        $returnVar = NULL;
+        $output  = NULL;
+        exec($command, $output, $returnVar);
+
+        if ($returnVar !== 0) {
+            return back()->with('error', 'Backup failed. Ensure the server has mysqldump installed and permissions are correct.');
+        }
+
+        return back()->with('success', 'Full system database snapshot generated successfully.');
+    }
+
+    public function downloadBackup($filename)
+    {
+        abort_if(auth()->user()->role !== 'admin', 403, 'Unauthorized Access: IT Operations Only.');
+
+        $path = 'backups/' . $filename;
+        if (Storage::exists($path)) {
+            return Storage::download($path);
+        }
+        return back()->with('error', 'Archive file corrupted or missing.');
     }
 }

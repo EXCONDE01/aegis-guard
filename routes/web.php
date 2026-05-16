@@ -22,11 +22,16 @@ Route::middleware('auth')->group(function () {
     Route::get('/thresholds', [DashboardController::class, 'thresholds'])->name('admin.thresholds');
     Route::put('/thresholds', [DashboardController::class, 'updateThresholds'])->name('admin.thresholds.update');
 
-    // Gateway & VLAN 
+    // Gateway & VLAN Infrastructure 
     Route::get('/network', [DashboardController::class, 'network'])->name('admin.network');
-    Route::get('/network/telemetry', [DashboardController::class, 'gatewayTelemetry'])->name('admin.network.telemetry'); // Live polling endpoint
+    Route::get('/network/telemetry', [DashboardController::class, 'gatewayTelemetry'])->name('admin.network.telemetry');
     Route::post('/network/vlan', [DashboardController::class, 'storeVlan'])->name('admin.network.vlan.store');
     Route::delete('/network/vlan/{id}', [DashboardController::class, 'destroyVlan'])->name('admin.network.vlan.destroy');
+
+    // System SQL Backups
+    Route::get('/backups', [DashboardController::class, 'showBackups'])->name('admin.backups.index');
+    Route::post('/backups/generate', [DashboardController::class, 'generateBackup'])->name('admin.backups.generate');
+    Route::get('/backups/download/{filename}', [DashboardController::class, 'downloadBackup'])->name('admin.backups.download');
 });
 
 require __DIR__.'/auth.php';
