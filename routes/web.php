@@ -28,10 +28,11 @@ Route::middleware('auth')->group(function () {
     Route::post('/network/vlan', [DashboardController::class, 'storeVlan'])->name('admin.network.vlan.store');
     Route::delete('/network/vlan/{id}', [DashboardController::class, 'destroyVlan'])->name('admin.network.vlan.destroy');
 
-    // System SQL Backups
+    // System SQL Backups & Active System Rollback
     Route::get('/backups', [DashboardController::class, 'showBackups'])->name('admin.backups.index');
     Route::post('/backups/generate', [DashboardController::class, 'generateBackup'])->name('admin.backups.generate');
     Route::get('/backups/download/{filename}', [DashboardController::class, 'downloadBackup'])->name('admin.backups.download');
+    Route::post('/backups/restore/{filename}', [DashboardController::class, 'restoreBackup'])->name('admin.backups.restore');
 });
 
 require __DIR__.'/auth.php';

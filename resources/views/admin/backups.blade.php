@@ -66,11 +66,9 @@
     </div>
 
     <div class="flex-1 overflow-y-auto">
-        <header class="bg-slate-950/80 backdrop-blur-sm border-b border-slate-800 p-8 sticky top-0 z-30 flex justify-between items-center">
-            <div>
-                <h1 class="text-2xl font-bold text-white">System Backups</h1>
-                <p class="text-sm text-slate-500 mt-1">Data Retention and Disaster Recovery Snapshots</p>
-            </div>
+        <header class="bg-slate-950/80 backdrop-blur-sm border-b border-slate-800 p-8 sticky top-0 z-30">
+            <h1 class="text-2xl font-bold text-white">System Backups</h1>
+            <p class="text-sm text-slate-500 mt-1">Data Retention and Automated Disaster Recovery Engine</p>
         </header>
 
         <main class="p-8 pb-20 max-w-7xl mx-auto space-y-8">
@@ -92,7 +90,7 @@
             <div class="bg-slate-900 p-6 rounded-2xl border border-slate-800 flex flex-col md:flex-row justify-between items-center gap-6 shadow-sm">
                 <div>
                     <h2 class="text-lg font-bold text-white">Generate Database Dump</h2>
-                    <p class="text-sm text-slate-500 mt-1">Create an immediate .sql snapshot of all environmental logs and configurations.</p>
+                    <p class="text-sm text-slate-500 mt-1">Execute a system-level infrastructure blueprint capture (.sql configuration state).</p>
                 </div>
                 
                 <form action="{{ route('admin.backups.generate') }}" method="POST" class="w-full md:w-auto">
@@ -110,8 +108,8 @@
                 </div>
                 <div class="divide-y divide-slate-800">
                     
-                    @forelse($backups as $index => $backup)
-                    <div class="p-6 flex items-center justify-between hover:bg-slate-800/50 transition-colors group">
+                @forelse($backups as $index => $backup)
+                    <div class="p-6 flex items-center justify-between hover:bg-slate-800/50 transition-colors group" x-data="{ openRestoreModal: false }">
                         <div class="flex items-center gap-4">
                             <div class="w-12 h-12 rounded-xl flex items-center justify-center {{ $index === 0 ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' : 'bg-slate-950 text-slate-500 border border-slate-800' }}">
                                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
@@ -121,9 +119,53 @@
                                 <div class="text-xs text-slate-500 font-mono mt-1">System generated • {{ $backup['size'] }} • {{ $backup['date'] }}</div>
                             </div>
                         </div>
-                        <a href="{{ route('admin.backups.download', $backup['name']) }}" class="{{ $index === 0 ? 'text-indigo-400 hover:text-indigo-300 bg-indigo-500/10' : 'text-slate-400 hover:text-white bg-slate-950 border border-slate-800' }} font-semibold text-xs px-4 py-2 rounded-lg transition-colors">
-                            Download
-                        </a>
+                        
+                        <div class="flex items-center gap-3">
+                            <button type="button" onclick="openModal('modal-{{ $index }}')" class="text-amber-400 hover:text-amber-300 bg-amber-500/10 font-semibold text-xs px-4 py-2 rounded-lg transition-colors">
+                                Restore
+                            </button>
+
+                            <a href="{{ route('admin.backups.download', $backup['name']) }}" class="{{ $index === 0 ? 'text-indigo-400 hover:text-indigo-300 bg-indigo-500/10' : 'text-slate-400 hover:text-white bg-slate-950 border border-slate-800' }} font-semibold text-xs px-4 py-2 rounded-lg transition-colors">
+                                Download
+                            </a>
+                        </div>
+
+                        <div id="modal-{{ $index }}" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 overflow-x-hidden overflow-y-auto">
+                            <div class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm" onclick="closeModal('modal-{{ $index }}')"></div>
+                            
+                            <div class="relative w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-6 z-10 transform transition-all">
+                                <div class="flex items-start gap-4">
+                                    <div class="w-10 h-10 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-500 flex items-center justify-center shrink-0">
+                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h3 class="text-base font-bold text-white tracking-tight">CRITICAL INFRASTRUCTURE WARNING</h3>
+                                        <p class="text-xs text-slate-400 mt-2 leading-relaxed">
+                                            You are initializing an automated core state regression rollback. Current session logs and environmental analytics metrics will be permanently overwritten by the configuration snapshot.
+                                        </p>
+                                        <div class="mt-3 p-2 bg-slate-950 border border-slate-800 rounded-lg">
+                                            <span class="text-[10px] font-mono text-slate-500 block uppercase font-bold tracking-wider">Target Blueprint File</span>
+                                            <span class="text-xs font-mono text-amber-400 break-all">{{ $backup['name'] }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-800">
+                                    <button type="button" onclick="closeModal('modal-{{ $index }}')" class="px-4 py-2 bg-slate-950 hover:bg-slate-800 text-slate-400 hover:text-slate-200 font-semibold text-xs rounded-lg transition-colors border border-slate-800">
+                                        Cancel
+                                    </button>
+                                    
+                                    <form action="{{ route('admin.backups.restore', $backup['name']) }}" method="POST" class="inline m-0">
+                                        @csrf
+                                        <button type="submit" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-lg transition-colors shadow-lg shadow-amber-500/10">
+                                            Confirm Execution
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     @empty
                     <div class="p-12 text-center text-slate-500 text-sm">
@@ -135,5 +177,21 @@
             </div>
         </main>
     </div>
+    <script>
+      function toggleSidebar() { 
+          document.getElementById('sidebar').classList.toggle('-translate-x-full'); 
+          document.getElementById('mobile-overlay').classList.toggle('hidden'); 
+      }
+
+      function openModal(modalId) {
+          document.getElementById(modalId).classList.remove('hidden');
+          document.body.classList.add('overflow-hidden'); // Lock scroll under modal
+      }
+
+      function closeModal(modalId) {
+          document.getElementById(modalId).classList.add('hidden');
+          document.body.classList.remove('overflow-hidden'); // Unlock scroll
+      }
+  </script>
 </body>
 </html>

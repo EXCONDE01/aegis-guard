@@ -11,7 +11,7 @@ use App\Models\Vlan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Storage; // ADDED FOR BACKUPS
+use Illuminate\Support\Facades\Storage;
 
 class DashboardController extends Controller
 {
@@ -314,7 +314,7 @@ class DashboardController extends Controller
     }
 
     // ==========================================
-    // MODULE 4: SYSTEM BACKUPS (IT PERSONNEL ONLY)
+    // MODULE 4: SYSTEM BACKUPS & RESTORATION
     // ==========================================
 
     public function showBackups()
@@ -373,5 +373,38 @@ class DashboardController extends Controller
             return Storage::download($path);
         }
         return back()->with('error', 'Archive file corrupted or missing.');
+    }
+
+    public function restoreBackup($filename)
+    {
+        abort_if(auth()->user()->role !== 'admin', 403, 'Unauthorized Access: IT Operations Only.');
+
+        $path = 'backups/' . $filename;
+
+        if (!Storage::exists($path)) {
+            return back()->with('error', 'Restoration aborted: Target archive snapshot missing.');
+        }
+
+        $absolutePath = Storage::path($path);
+
+        // Native Linux Stream processing to force clear tables and stream raw configurations
+        $command = sprintf(
+            'mysql --user="%s" --password="%s" --host="%s" "%s" < "%s"',
+            env('DB_USERNAME'),
+            env('DB_PASSWORD'),
+            env('DB_HOST', '127.0.0.1'),
+            env('DB_DATABASE'),
+            $absolutePath
+        );
+
+        $returnVar = NULL;
+        $output  = NULL;
+        exec($command, $output, $returnVar);
+
+        if ($returnVar !== 0) {
+            return back()->with('error', 'Catastrophic Error: System level restoration command stream broken.');
+        }
+
+        return back()->with('success', "Disaster Recovery Complete. Database successfully reverted to: {$filename}");
     }
 }
