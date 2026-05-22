@@ -16,9 +16,12 @@ Route::middleware('auth')->group(function () {
     Route::post('/contacts', [DashboardController::class, 'storeContact'])->name('admin.contacts.store');
     Route::delete('/contacts/{id}', [DashboardController::class, 'destroyContact'])->name('admin.contacts.destroy');
 
-    // Hardware Nodes & Thresholds
+    // Hardware Nodes & Telemetry
     Route::get('/nodes', [DashboardController::class, 'nodes'])->name('admin.nodes');
+    Route::get('/nodes/telemetry', [DashboardController::class, 'nodesTelemetry'])->name('admin.nodes.telemetry');
     Route::put('/nodes/{id}', [DashboardController::class, 'updateNode'])->name('admin.nodes.update');
+    
+    // Thresholds
     Route::get('/thresholds', [DashboardController::class, 'thresholds'])->name('admin.thresholds');
     Route::put('/thresholds', [DashboardController::class, 'updateThresholds'])->name('admin.thresholds.update');
 
@@ -28,7 +31,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/network/vlan', [DashboardController::class, 'storeVlan'])->name('admin.network.vlan.store');
     Route::delete('/network/vlan/{id}', [DashboardController::class, 'destroyVlan'])->name('admin.network.vlan.destroy');
 
-    // System SQL Backups & Active System Rollback
+    // System SQL Backups
     Route::get('/backups', [DashboardController::class, 'showBackups'])->name('admin.backups.index');
     Route::post('/backups/generate', [DashboardController::class, 'generateBackup'])->name('admin.backups.generate');
     Route::get('/backups/download/{filename}', [DashboardController::class, 'downloadBackup'])->name('admin.backups.download');

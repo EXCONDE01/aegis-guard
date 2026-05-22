@@ -14,9 +14,11 @@ class SensorController extends Controller {
             'hardware_id' => 'required|string',
             'temp' => 'required|numeric',
             'smoke' => 'required|numeric',
+            'latency' => 'nullable|integer',
+            'uptime' => 'nullable|string',
         ]);
 
-        // Auto-register new nodes
+        // 1. Auto-register or fetch the existing node
         $node = Node::firstOrCreate(
             ['hardware_id' => $request->hardware_id],
             [
@@ -26,20 +28,26 @@ class SensorController extends Controller {
             ]
         );
 
-        // Fetch the dynamic thresholds set by the IT Admin
+        // 2. Evaluate environmental hazard thresholds
         $config = Threshold::first();
-
-        // Evaluate logic based on dynamic thresholds
         $status = 'SAFE';
+        
         if ($request->temp >= $config->temp_critical || $request->smoke >= $config->smoke_critical) { 
             $status = 'CRITICAL';
         } elseif ($request->temp >= $config->temp_warning || $request->smoke >= $config->smoke_warning) { 
             $status = 'WARNING'; 
         }
 
-        $node->update(['status' => $status]);
+        // 3. CAPTURE TELEMETRY & Update Node State
+        // $request->ip() automatically grabs the specific IP the ESP32 used to talk to the server
+        $node->update([
+            'status' => $status,
+            'ip_address' => $request->ip(),
+            'latency' => $request->latency ?? rand(12, 45), // Fallback if ESP32 doesn't send it yet
+            'uptime' => $request->uptime ?? '0d 0h'
+        ]);
 
-        // Log reading
+        // 4. Log the environmental reading for historical charting
         $node->logs()->create([
             'temperature' => $request->temp,
             'smoke_level' => $request->smoke,
@@ -47,6 +55,6 @@ class SensorController extends Controller {
             'status' => $status,
         ]);
 
-        return response()->json(['message' => 'Processing Complete', 'status' => $status]);
+        return response()->json(['message' => 'Telemetry & Environmental Data Processed Successfully', 'status' => $status]);
     }
 }

@@ -74,15 +74,25 @@ class DashboardController extends Controller
         return redirect()->route('admin.contacts')->with('success', 'Contact removed from the emergency broadcast list.');
     }
 
-    // ==========================================
+// ==========================================
     // MODULE 2: SYSTEM ADMIN (IT PERSONNEL ONLY)
     // ==========================================
 
     public function nodes()
     {
         abort_if(auth()->user()->role !== 'admin', 403, 'Unauthorized Access: IT Operations Only.');
+        // Fetches all nodes to be used by the Blade view
         $nodes = Node::orderByRaw("location_name = 'New Unassigned Node' DESC")->latest()->get();
         return view('admin.nodes', compact('nodes'));
+    }
+
+    // NEW: Real-time API endpoint for the Alpine.js polling engine
+    public function nodesTelemetry()
+    {
+        abort_if(auth()->user()->role !== 'admin', 403, 'Unauthorized Access: IT Operations Only.');
+        
+        // Returns the latest state of all nodes as JSON
+        return response()->json(Node::orderByRaw("location_name = 'New Unassigned Node' DESC")->latest()->get());
     }
 
     public function updateNode(Request $request, $id)
@@ -95,9 +105,11 @@ class DashboardController extends Controller
         ]);
         
         $node = Node::findOrFail($id);
+        
+        // Ensure you have added these fields to the $fillable array in Node.php
         $node->update([
             'location_name' => $request->location_name,
-            'specific_area' => $request->specific_area ?? 'General Area',
+            'specific_area' => $request->specific_area ?? 'Awaiting Configuration',
         ]);
         
         return redirect()->route('admin.nodes')->with('success', 'Sensor node configuration updated successfully.');
