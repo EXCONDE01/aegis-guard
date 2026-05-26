@@ -8,6 +8,7 @@ use App\Models\NodeLog;
 use App\Models\AlertContact;
 use App\Models\Threshold;
 use App\Models\Vlan;
+use App\Models\FirewallRule;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
@@ -74,24 +75,20 @@ class DashboardController extends Controller
         return redirect()->route('admin.contacts')->with('success', 'Contact removed from the emergency broadcast list.');
     }
 
-// ==========================================
+    // ==========================================
     // MODULE 2: SYSTEM ADMIN (IT PERSONNEL ONLY)
     // ==========================================
 
     public function nodes()
     {
         abort_if(auth()->user()->role !== 'admin', 403, 'Unauthorized Access: IT Operations Only.');
-        // Fetches all nodes to be used by the Blade view
         $nodes = Node::orderByRaw("location_name = 'New Unassigned Node' DESC")->latest()->get();
         return view('admin.nodes', compact('nodes'));
     }
 
-    // NEW: Real-time API endpoint for the Alpine.js polling engine
     public function nodesTelemetry()
     {
         abort_if(auth()->user()->role !== 'admin', 403, 'Unauthorized Access: IT Operations Only.');
-        
-        // Returns the latest state of all nodes as JSON
         return response()->json(Node::orderByRaw("location_name = 'New Unassigned Node' DESC")->latest()->get());
     }
 
@@ -106,7 +103,6 @@ class DashboardController extends Controller
         
         $node = Node::findOrFail($id);
         
-        // Ensure you have added these fields to the $fillable array in Node.php
         $node->update([
             'location_name' => $request->location_name,
             'specific_area' => $request->specific_area ?? 'Awaiting Configuration',
@@ -162,6 +158,7 @@ class DashboardController extends Controller
     {
         abort_if(auth()->user()->role !== 'admin', 403, 'Unauthorized Access: IT Operations Only.');
         
+        // 1. Fetch Gateway Status
         try {
             $response = Http::withOptions(['verify' => false]) 
                 ->withBasicAuth(env('OPNSENSE_API_KEY'), env('OPNSENSE_API_SECRET'))
@@ -173,8 +170,8 @@ class DashboardController extends Controller
                     'cpu' => rand(11, 19) . '.' . rand(1, 9) . '%',
                     'ram' => (rand(21, 25) / 10) . ' GB / 8.0 GB',
                     'uptime' => rand(12, 15) . ' Days, 04:' . rand(10, 59) . ':' . rand(10, 59),
-                    'uplink' => '1 Gbps (LSPU Backbone Core)',
-                    'firewall_rules' => '85 Active Rules' 
+                    'uplink' => '1 Gbps (Primary Fiber ISP)',
+                    'firewall_rules' => 'Active Engine' 
                 ];
             } else {
                 throw new \Exception('API Error');
@@ -183,6 +180,7 @@ class DashboardController extends Controller
             $gateway = ['status' => 'OFFLINE - API DISCONNECTED', 'cpu' => '--', 'ram' => '--', 'uptime' => '--', 'uplink' => '--', 'firewall_rules' => '--'];
         }
 
+        // 2. Fetch VLANs from Hardware API
         $vlans = collect();
         try {
             $vlanResponse = Http::withOptions(['verify' => false])
@@ -191,10 +189,8 @@ class DashboardController extends Controller
 
             if ($vlanResponse->successful()) {
                 $opnsenseVlans = $vlanResponse->json()['rows'] ?? [];
-                
                 foreach ($opnsenseVlans as $ov) {
                     $localVlan = Vlan::where('vlan_id', $ov['tag'])->first();
-                    
                     $vlans->push((object)[
                         'id' => $localVlan ? $localVlan->id : $ov['uuid'], 
                         'vlan_id' => $ov['tag'],
@@ -204,10 +200,41 @@ class DashboardController extends Controller
                 }
             }
         } catch (\Exception $e) {
-            $vlans = Vlan::orderBy('vlan_id', 'asc')->get();
+            $vlans = Vlan::orderBy('vlan_id', 'asc')->get(); // Fallback to local DB
         }
 
-        return view('admin.network', compact('gateway', 'vlans'));
+        // 3. Fetch Staged Rules (Local Database)
+        $firewallRules = FirewallRule::latest()->get();
+
+        // 4. Fetch Live Hardware Rules (OPNsense API)
+        $hardwareRules = collect();
+        try {
+            $rulesResponse = Http::withOptions(['verify' => false])
+                ->withBasicAuth(env('OPNSENSE_API_KEY'), env('OPNSENSE_API_SECRET'))
+                ->get(env('OPNSENSE_URL') . '/api/firewall/filter/search_rule', [
+                    'show_all' => 1,
+                    'rowCount' => 100
+                ]);
+
+            if ($rulesResponse->successful()) {
+                $opnsenseRules = $rulesResponse->json()['rows'] ?? [];
+                foreach ($opnsenseRules as $rule) {
+                    $hardwareRules->push((object)[
+                        'action' => $rule['action'] ?? 'pass',
+                        'interface' => $rule['interface'] ?? 'ANY',
+                        'protocol' => $rule['protocol'] ?? 'ANY',
+                        'source' => $rule['source_net'] ?? 'ANY',
+                        'destination' => $rule['destination_net'] ?? 'ANY',
+                        'port' => $rule['dst_port'] ?? 'ANY',
+                        'description' => $rule['description'] ?? 'System Defined Rule'
+                    ]);
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error('OPNsense Hardware Rule Fetch Error: ' . $e->getMessage());
+        }
+
+        return view('admin.network', compact('gateway', 'vlans', 'firewallRules', 'hardwareRules'));
     }
 
     public function gatewayTelemetry()
@@ -225,8 +252,8 @@ class DashboardController extends Controller
                     'cpu' => rand(11, 19) . '.' . rand(1, 9) . '%',
                     'ram' => (rand(21, 25) / 10) . ' GB / 8.0 GB',
                     'uptime' => rand(12, 15) . ' Days, 04:' . rand(10, 59) . ':' . rand(10, 59),
-                    'uplink' => '1 Gbps (LSPU Backbone Core)',
-                    'firewall_rules' => '85 Active Rules' 
+                    'uplink' => '1 Gbps (Primary Fiber ISP)',
+                    'firewall_rules' => 'Active Engine' 
                 ]);
             }
             throw new \Exception('API Connection Refused');
@@ -259,7 +286,7 @@ class DashboardController extends Controller
                 ->withBasicAuth(env('OPNSENSE_API_KEY'), env('OPNSENSE_API_SECRET'))
                 ->post(env('OPNSENSE_URL') . '/api/interfaces/vlan_settings/addItem', [
                     'vlan' => [
-                        'if' => 'vtnet1', 
+                        'if' => 'vtnet1', // Ensure this maps to your physical LAN adapter in Proxmox
                         'tag' => $request->vlan_id,
                         'descr' => $request->name,
                     ]
@@ -326,7 +353,121 @@ class DashboardController extends Controller
     }
 
     // ==========================================
-    // MODULE 4: SYSTEM BACKUPS & RESTORATION
+    // MODULE 4: FIREWALL RULE ENGINE
+    // ==========================================
+
+    public function storeFirewallRule(Request $request)
+    {
+        abort_if(auth()->user()->role !== 'admin', 403, 'Unauthorized Access: IT Operations Only.');
+
+        $request->validate([
+            'interface' => 'required|string|max:50',
+            'protocol' => 'required|string|max:50',
+            'source' => 'required|string|max:255',
+            'destination' => 'required|string|max:255',
+            'port' => 'nullable|string|max:100',
+            'policy' => 'required|in:ALLOW,BLOCK,PRIORITIZE',
+        ]);
+
+        FirewallRule::create([
+            'interface' => $request->interface,
+            'protocol' => $request->protocol,
+            'source' => $request->source,
+            'destination' => $request->destination,
+            'port' => $request->port ?? 'ANY',
+            'policy' => $request->policy,
+            'is_synced' => false
+        ]);
+
+        return redirect()->route('admin.network')->with('success', 'Firewall rule staged on ' . strtoupper($request->interface) . '. Click Apply to deploy to gateway.');
+    }
+
+    public function applyFirewallRules()
+    {
+        abort_if(auth()->user()->role !== 'admin', 403, 'Unauthorized Access: IT Operations Only.');
+
+        $unsyncedRules = FirewallRule::where('is_synced', false)->get();
+
+        if ($unsyncedRules->isEmpty()) {
+            return redirect()->route('admin.network')->with('success', 'Hardware firewall is already synchronized with all active rules.');
+        }
+
+        try {
+            foreach ($unsyncedRules as $rule) {
+                $action = strtolower($rule->policy); 
+                if ($action === 'allow' || $action === 'prioritize') {
+                    $action = 'pass';
+                }
+
+                Http::withOptions(['verify' => false])
+                    ->withBasicAuth(env('OPNSENSE_API_KEY'), env('OPNSENSE_API_SECRET'))
+                    ->post(env('OPNSENSE_URL') . '/api/firewall/filter/addRule', [
+                        'rule' => [
+                            'action' => $action,
+                            'interface' => strtolower($rule->interface), 
+                            'ipprotocol' => 'inet',
+                            'protocol' => strtolower($rule->protocol),
+                            'source_net' => $rule->source,
+                            'destination_net' => $rule->destination,
+                            'dst_port' => $rule->port === 'ANY' ? '' : $rule->port,
+                            'description' => 'Aegis-Guard [' . $rule->policy . ']: ' . $rule->source . ' -> ' . $rule->destination,
+                        ]
+                    ]);
+
+                $rule->update(['is_synced' => true]);
+            }
+
+            // Command OPNsense to reload the packet filter
+            Http::withOptions(['verify' => false])
+                ->withBasicAuth(env('OPNSENSE_API_KEY'), env('OPNSENSE_API_SECRET'))
+                ->post(env('OPNSENSE_URL') . '/api/firewall/filter/apply');
+
+            return redirect()->route('admin.network')->with('success', 'Security policies successfully compiled and deployed to the OPNsense kernel.');
+
+        } catch (\Exception $e) {
+            Log::error('OPNsense Rule Sync Error: ' . $e->getMessage());
+            return redirect()->route('admin.network')->with('error', 'API Communication Failure: Unable to push rules to the hardware.');
+        }
+    }
+
+    public function engageEmergencyLockdown()
+    {
+        abort_if(auth()->user()->role !== 'admin', 403, 'Unauthorized Access: IT Operations Only.');
+
+        try {
+            // 1. Push a global BLOCK rule to the firewall via API
+            Http::withOptions(['verify' => false])
+                ->withBasicAuth(env('OPNSENSE_API_KEY'), env('OPNSENSE_API_SECRET'))
+                ->post(env('OPNSENSE_URL') . '/api/firewall/filter/addRule', [
+                    'rule' => [
+                        'action' => 'block',
+                        'interface' => 'lan', // Change to your student/guest VLAN interface name if needed
+                        'ipprotocol' => 'inet',
+                        'protocol' => 'any',
+                        'source_net' => 'any',
+                        'destination_net' => 'any',
+                        'description' => 'EMERGENCY OVERRIDE: NON-ESSENTIAL TRAFFIC BLOCKED',
+                    ]
+                ]);
+
+            // 2. Force OPNsense to reload the packet filter instantly
+            Http::withOptions(['verify' => false])
+                ->withBasicAuth(env('OPNSENSE_API_KEY'), env('OPNSENSE_API_SECRET'))
+                ->post(env('OPNSENSE_URL') . '/api/firewall/filter/apply');
+
+            // 3. Log the critical action in the Laravel logs
+            Log::alert('CRITICAL EVENT: Emergency Network Lockdown Engaged by Admin ' . auth()->user()->name);
+
+            return redirect()->route('admin.network')->with('emergency_success', 'DISASTER PROTOCOL ENGAGED: Non-essential network traffic has been severed to prioritize emergency communications.');
+
+        } catch (\Exception $e) {
+            Log::error('Emergency Override Failure: ' . $e->getMessage());
+            return redirect()->route('admin.network')->with('error', 'CRITICAL FAILURE: Unable to establish API connection to edge gateway for lockdown.');
+        }
+    }
+
+    // ==========================================
+    // MODULE 5: SYSTEM BACKUPS & RESTORATION
     // ==========================================
 
     public function showBackups()
@@ -399,7 +540,6 @@ class DashboardController extends Controller
 
         $absolutePath = Storage::path($path);
 
-        // Native Linux Stream processing to force clear tables and stream raw configurations
         $command = sprintf(
             'mysql --user="%s" --password="%s" --host="%s" "%s" < "%s"',
             env('DB_USERNAME'),
