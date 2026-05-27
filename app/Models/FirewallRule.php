@@ -10,6 +10,7 @@ class FirewallRule extends Model
     use HasFactory;
 
     protected $fillable = [
+        'interface', 
         'protocol',
         'source',
         'destination',

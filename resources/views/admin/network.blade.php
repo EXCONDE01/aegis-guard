@@ -294,7 +294,7 @@
                     <div x-show="showRuleForm" x-collapse x-cloak class="bg-slate-950 border-b border-slate-800 p-6">
                         <form action="{{ route('admin.network.rules.store') }}" method="POST" class="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
                             @csrf
-                            <input type="hidden" name="interface" x-model="fwTab">
+                            <input type="hidden" name="interface" :value="fwTab">
                             <div>
                                 <label class="block text-[10px] font-bold tracking-widest text-slate-500 uppercase mb-2">Policy Action</label>
                                 <select name="policy" required class="w-full bg-slate-900 border border-slate-700 text-xs text-slate-300 rounded-lg px-3 py-2.5">
