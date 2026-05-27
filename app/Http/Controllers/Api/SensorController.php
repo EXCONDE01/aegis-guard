@@ -39,11 +39,10 @@ class SensorController extends Controller {
         }
 
         // 3. CAPTURE TELEMETRY & Update Node State
-        // $request->ip() automatically grabs the specific IP the ESP32 used to talk to the server
         $node->update([
             'status' => $status,
             'ip_address' => $request->ip(),
-            'latency' => $request->latency ?? rand(12, 45), // Fallback if ESP32 doesn't send it yet
+            'latency' => $request->latency ?? rand(12, 45), 
             'uptime' => $request->uptime ?? '0d 0h'
         ]);
 
@@ -55,6 +54,9 @@ class SensorController extends Controller {
             'status' => $status,
         ]);
 
-        return response()->json(['message' => 'Telemetry & Environmental Data Processed Successfully', 'status' => $status]);
+        return response()->json([
+            'message' => 'Telemetry & Environmental Data Processed Successfully', 
+            'status' => $status
+        ], 200);
     }
 }

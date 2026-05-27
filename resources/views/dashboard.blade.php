@@ -102,7 +102,7 @@
                 $systemHealth = $totalNodes > 0 ? round(($safeCount / $totalNodes) * 100) : 0;
             @endphp
 
-            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div id="stats-container" class="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col justify-between relative overflow-hidden">
                     <div class="flex justify-between items-start mb-4">
                         <span class="text-xs font-bold text-slate-500 uppercase tracking-widest">System Health</span>
@@ -234,7 +234,7 @@
 
             <div>
                 <h3 class="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">Live Telemetry Feeds</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div id="telemetry-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     @foreach($nodes as $node)
                         @php 
                             $latestLog = $node->logs->first(); 
@@ -283,5 +283,23 @@
             </div>
         </main>
     </div>
+    
+    <script>
+        // Set to fire every 4000ms (4 seconds) to perfectly match the ESP32 transmission delay
+        setInterval(function() {
+            fetch(window.location.href)
+                .then(response => response.text())
+                .then(html => {
+                    // 1. Create a virtual document out of the newly fetched data
+                    let parser = new DOMParser();
+                    let doc = parser.parseFromString(html, 'text/html');
+                    
+                    // 2. Silently swap the old dashboard numbers with the live database numbers
+                    document.getElementById('stats-container').innerHTML = doc.getElementById('stats-container').innerHTML;
+                    document.getElementById('telemetry-container').innerHTML = doc.getElementById('telemetry-container').innerHTML;
+                })
+                .catch(error => console.error('Telemetry Sync Error:', error));
+        }, 4000);
+    </script>
 </body>
 </html>
