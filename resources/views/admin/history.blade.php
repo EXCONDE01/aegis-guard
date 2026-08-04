@@ -9,7 +9,7 @@
 </head>
 <body class="flex h-screen bg-slate-950 font-sans text-slate-300 overflow-hidden">
     
-<div class="w-64 bg-slate-900 border-r border-slate-800 flex flex-col z-50 shrink-0">
+    <div class="w-64 bg-slate-900 border-r border-slate-800 flex flex-col z-50 shrink-0">
         <div class="p-6">
             <h2 class="text-xl font-bold text-white tracking-tight">Emergency Command Center</h2>
             <p class="text-[10px] text-slate-500 uppercase font-semibold tracking-widest mt-1">Disaster Risk Reduction Portal</p>
@@ -54,7 +54,7 @@
                 </a>
                 
                 <a href="{{ route('admin.backups.index') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors mt-1 {{ request()->routeIs('admin.backups.*') ? 'bg-indigo-500/10 text-indigo-400' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50' }}">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694-4.125-8.25-4.125S3.75 8.653 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 0v3.75m-16.5-3.75v3.75m16.5 0v3.75C20.25 16.153 16.556 18 12 18s-8.25-1.847-8.25-4.125v-3.75m16.5 0c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125" /></svg>
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25-4.125V6.375m16.5 0v3.75m-16.5-3.75v3.75m16.5 0v3.75C20.25 16.153 16.556 18 12 18s-8.25-1.847-8.25-4.125v-3.75m16.5 0c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125" /></svg>
                     System Backups
                 </a>
             </div>
@@ -87,7 +87,8 @@
                     <thead class="bg-slate-950/50 text-xs font-semibold text-slate-500 border-b border-slate-800">
                         <tr>
                             <th class="px-6 py-4">Timestamp</th>
-                            <th class="px-6 py-4">Location</th>
+                            <!-- Updated Table Header -->
+                            <th class="px-6 py-4">Department / Room</th>
                             <th class="px-6 py-4">Status Event</th>
                             <th class="px-6 py-4">Metrics (Temp / Smoke)</th>
                         </tr>
@@ -98,18 +99,46 @@
                             <td class="px-6 py-4 whitespace-nowrap font-medium text-slate-300">
                                 {{ $log->created_at->format('M d, Y - H:i:s') }}
                             </td>
+                            
+                            <!-- Updated Location Block with Campus Terminology -->
                             <td class="px-6 py-4">
                                 <p class="font-medium text-slate-200">{{ $log->node->location_name }}</p>
-                                <p class="text-xs text-slate-500 mt-0.5">{{ $log->node->specific_area ?? $log->node->hardware_id }}</p>
+                                <p class="text-xs text-slate-400 mt-0.5">
+                                    <span class="text-slate-500 font-medium mr-1">Room:</span> 
+                                    {{ $log->node->specific_area ?? $log->node->hardware_id }}
+                                </p>
                             </td>
+                            
                             <td class="px-6 py-4">
                                 <span class="px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wider {{ $log->status == 'CRITICAL' ? 'bg-red-500/10 text-red-500' : ($log->status == 'WARNING' ? 'bg-amber-500/10 text-amber-500' : 'bg-emerald-500/10 text-emerald-500') }}">
                                     {{ $log->status }}
                                 </span>
                             </td>
+                            
+                            <!-- Updated Metrics Block for True ESP32 Math -->
                             <td class="px-6 py-4 font-mono text-xs">
-                                <span class="{{ $log->temperature > 40 ? 'text-red-400 font-bold' : 'text-slate-300' }}">{{ $log->temperature }}°C</span> <span class="text-slate-600 px-1">/</span> 
-                                <span class="{{ $log->smoke_level > 10 ? 'text-amber-400 font-bold' : 'text-slate-300' }}">{{ $log->smoke_level }}%</span>
+                                @php
+                                    // Convert the raw ESP32 analog data (0-4095) to a clean 0-100% format
+                                    $smokeRaw = $log->smoke_level ?? 0;
+                                    $smokePercentage = min(($smokeRaw / 4095) * 100, 100);
+                                    
+                                    // Define when the text should turn red/amber in the history logs
+                                    $isTempHigh = $log->temperature > 40;
+                                    $isSmokeHigh = $smokeRaw >= 1200; // Matches your warning threshold from the dashboard
+                                @endphp
+                            
+                                <!-- Temperature Display -->
+                                <span class="{{ $isTempHigh ? 'text-red-400 font-bold' : 'text-slate-300' }}">
+                                    {{ $log->temperature ?? '--' }}°C
+                                </span> 
+                                
+                                <span class="text-slate-600 px-2">|</span> 
+                                
+                                <!-- Smoke Display (Now accurate out of 100%) -->
+                                <span class="{{ $isSmokeHigh ? 'text-amber-400 font-bold' : 'text-slate-300' }}">
+                                    Smoke: {{ number_format($smokePercentage, 1) }}%
+                                    <span class="text-[10px] text-slate-500 ml-1 font-sans font-normal">(Raw: {{ $smokeRaw }})</span>
+                                </span>
                             </td>
                         </tr>
                         @endforeach
