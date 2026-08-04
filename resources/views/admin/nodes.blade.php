@@ -162,15 +162,16 @@
                                 
                                 <div class="space-y-4 mb-4">
                                     <div>
-                                        <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Lab / Room Name</label>
-                                        <input type="text" name="location_name" :value="node.location_name === 'New Unassigned Node' ? '' : node.location_name" placeholder="e.g. CCS Lab 1" required class="bg-slate-950 border border-slate-700 text-white text-sm rounded-lg px-3 py-2 w-full focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none">
+                                        <!-- Updated to Department / Building -->
+                                        <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Department / Building</label>
+                                        <input type="text" name="location_name" :value="node.location_name === 'New Unassigned Node' ? '' : node.location_name" placeholder="e.g. College of Computer Studies" required class="bg-slate-950 border border-slate-700 text-white text-sm rounded-lg px-3 py-2 w-full focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none">
                                     </div>
                                     <div>
-                                        <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Specific Position</label>
-                                        <input type="text" name="specific_area" :value="node.specific_area === 'Awaiting Configuration' ? '' : node.specific_area" placeholder="e.g. Server Rack A" class="bg-slate-950 border border-slate-700 text-white text-sm rounded-lg px-3 py-2 w-full focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none">
+                                        <!-- Updated to Room -->
+                                        <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Room</label>
+                                        <input type="text" name="specific_area" :value="node.specific_area === 'Awaiting Configuration' ? '' : node.specific_area" placeholder="e.g. IT Lab 3" class="bg-slate-950 border border-slate-700 text-white text-sm rounded-lg px-3 py-2 w-full focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none">
                                     </div>
                                 </div>
-
                                 <div class="mt-auto pt-4 border-t border-slate-700 flex justify-end gap-2">
                                     <button type="button" @click="editing = false" class="text-xs font-semibold text-slate-400 hover:text-slate-200 px-3 py-2 transition-colors">
                                         Cancel
@@ -204,6 +205,17 @@
                 init() {
                     // Start a background loop to fetch data from the server every 2 seconds
                     setInterval(() => {
+                        
+                        // 1. Check if you are currently focused on a form field
+                        const activeTag = document.activeElement ? document.activeElement.tagName : '';
+                        const isTyping = ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeTag);
+
+                        // 2. If you are typing, abort the fetch so Alpine doesn't overwrite your text with old database data
+                        if (isTyping) {
+                            return; 
+                        }
+
+                        // 3. Otherwise, fetch the live telemetry normally
                         fetch("{{ route('admin.nodes.telemetry') }}")
                             .then(res => res.json())
                             .then(data => {

@@ -235,70 +235,142 @@
             <div>
                 <h3 class="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">Live Telemetry Feeds</h3>
                 <div id="telemetry-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    @foreach($nodes as $node)
-                        @php 
-                            $latestLog = $node->logs->first(); 
-                            $isCritical = $node->status == 'CRITICAL';
-                            $isWarning = $node->status == 'WARNING';
-                        @endphp
+                @foreach($nodes as $node)
+                    @php 
+                        $latestLog = $node->logs->first(); 
+                        $isOffline = $node->status == 'OFFLINE';
+                        $isCritical = $node->status == 'CRITICAL';
+                        $isWarning = $node->status == 'WARNING';
+                    @endphp
 
-                        <div class="bg-slate-900 p-6 rounded-2xl border {{ $isCritical ? 'border-red-500/50' : ($isWarning ? 'border-amber-500/50' : 'border-slate-800') }}">
-                          <div class="flex justify-between items-start mb-6">
-                            <div>
-                              <h3 class="text-base font-bold text-white">{{ $node->location_name }}</h3>
-                              <p class="text-xs text-slate-500 mt-1">{{ $node->specific_area }}</p>
-                            </div>
-                            <span class="px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wider {{ $isCritical ? 'bg-red-500/10 text-red-500' : ($isWarning ? 'bg-amber-500/10 text-amber-500' : 'bg-slate-800 text-slate-400') }}">
+                    <!-- Card Container: Dims slightly if the node goes offline -->
+                    <div class="bg-slate-900 p-6 rounded-2xl border transition-all duration-300 {{ $isOffline ? 'border-slate-700/50 opacity-75' : ($isCritical ? 'border-red-500/50' : ($isWarning ? 'border-amber-500/50' : 'border-slate-800')) }}">
+                        <div class="flex justify-between items-start mb-6">
+                        <div>
+                            <!-- location_name: Use for Department (e.g., "College of Computer Studies") -->
+                            <h3 class="text-base font-bold text-white">{{ $node->location_name }}</h3>
+                            
+                            <!-- specific_area: Use for the Room (e.g., "IT Lab 3") -->
+                            <p class="text-xs text-slate-400 mt-1">
+                                <span class="text-slate-500 font-medium mr-1">Room:</span> 
+                                {{ $node->specific_area }}
+                            </p>
+                        </div>
+                            
+                            <!-- Upgraded Status Badge with Pinging Dot -->
+                            <span class="px-2.5 py-1 rounded flex items-center gap-1.5 w-fit text-[10px] font-bold uppercase tracking-wider {{ $isOffline ? 'bg-slate-800 text-slate-500' : ($isCritical ? 'bg-red-500/10 text-red-500' : ($isWarning ? 'bg-amber-500/10 text-amber-500' : 'bg-emerald-500/10 text-emerald-400')) }}">
+                                
+                                @if(!$isOffline)
+                                    <!-- Active Ping Animation -->
+                                    <span class="relative flex h-1.5 w-1.5">
+                                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 {{ $isCritical ? 'bg-red-400' : ($isWarning ? 'bg-amber-400' : 'bg-emerald-400') }}"></span>
+                                        <span class="relative inline-flex rounded-full h-1.5 w-1.5 {{ $isCritical ? 'bg-red-500' : ($isWarning ? 'bg-amber-500' : 'bg-emerald-500') }}"></span>
+                                    </span>
+                                @else
+                                    <!-- Dead Dot (No Animation) -->
+                                    <span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-slate-600"></span>
+                                @endif
+                                
                                 {{ $node->status }}
                             </span>
-                          </div>
-
-                          <div class="space-y-5">
-                            <div>
-                              <div class="flex justify-between items-end mb-1.5">
-                                <span class="text-xs font-medium text-slate-400">Temperature</span>
-                                <span class="text-sm font-semibold {{ $latestLog && $latestLog->temperature > 40 ? 'text-red-400' : 'text-slate-200' }}">
-                                    {{ $latestLog->temperature ?? '--' }} °C
-                                </span>
-                              </div>
-                              <div class="w-full bg-slate-800 rounded-full h-1">
-                                <div class="h-full rounded-full {{ $latestLog && $latestLog->temperature > 40 ? 'bg-red-500' : 'bg-indigo-500' }}" style="width: {{ $latestLog ? min(($latestLog->temperature / 50) * 100, 100) : 0 }}%"></div>
-                              </div>
-                            </div>
-                            <div>
-                              <div class="flex justify-between items-end mb-1.5">
-                                <span class="text-xs font-medium text-slate-400">Smoke Level</span>
-                                <span class="text-sm font-semibold {{ $latestLog && $latestLog->smoke_level > 10 ? 'text-amber-400' : 'text-slate-200' }}">
-                                    {{ $latestLog->smoke_level ?? '--' }} %
-                                </span>
-                              </div>
-                              <div class="w-full bg-slate-800 rounded-full h-1">
-                                <div class="h-full rounded-full {{ $latestLog && $latestLog->smoke_level > 10 ? 'bg-amber-500' : 'bg-slate-500' }}" style="width: {{ $latestLog ? min(($latestLog->smoke_level / 30) * 100, 100) : 0 }}%"></div>
-                              </div>
-                            </div>
-                          </div>
                         </div>
-                    @endforeach
+
+                        <div class="space-y-5">
+                            <!-- Temperature Section -->
+                            <div>
+                                <div class="flex justify-between items-end mb-1.5">
+                                    <span class="text-xs font-medium text-slate-400">Temperature</span>
+                                    <span class="text-sm font-semibold {{ $latestLog && $latestLog->temperature > 40 ? 'text-red-400' : 'text-slate-200' }}">
+                                        {{ $latestLog->temperature ?? '--' }} °C
+                                    </span>
+                                </div>
+                                <div class="w-full bg-slate-800 rounded-full h-1">
+                                    <div class="h-full rounded-full {{ $latestLog && $latestLog->temperature > 40 ? 'bg-red-500' : 'bg-indigo-500' }}" style="width: {{ $latestLog ? min(($latestLog->temperature / 50) * 100, 100) : 0 }}%"></div>
+                                </div>
+                            </div>
+
+                            <!-- Smoke Sensor Section -->
+                            @php
+                                // 1. Calculate the accurate percentage (0-4095 range)
+                                $smokeRaw = $latestLog ? $latestLog->smoke_level : 0;
+                                $smokePercentage = min(($smokeRaw / 4095) * 100, 100);
+                                
+                                // 2. Define your exact integer thresholds here 
+                                $criticalThreshold = 2500;
+                                $warningThreshold = 1200;
+
+                                // 3. Evaluate the state: Safe, Warning, or Critical
+                                if ($smokeRaw >= $criticalThreshold) {
+                                    $smokeColorText = 'text-red-400';
+                                    $smokeColorBar = 'bg-red-500';
+                                } elseif ($smokeRaw >= $warningThreshold) {
+                                    $smokeColorText = 'text-amber-400';
+                                    $smokeColorBar = 'bg-amber-500';
+                                } else {
+                                    // Note: If offline, it just defaults to safe colors for the bar so it doesn't look alarming
+                                    $smokeColorText = $isOffline ? 'text-slate-500' : 'text-emerald-400';
+                                    $smokeColorBar = $isOffline ? 'bg-slate-600' : 'bg-emerald-500';
+                                }
+                            @endphp
+
+                            <div>
+                                <div class="flex justify-between items-end mb-1.5">
+                                    <span class="text-xs font-medium text-slate-400">Smoke Level</span>
+                                    
+                                    <!-- Dynamic Text Color -->
+                                    <span class="text-sm font-semibold {{ $smokeColorText }}">
+                                        {{ number_format($smokePercentage, 1) }}% 
+                                        <span class="text-[10px] text-slate-500 ml-1">(Raw: {{ $smokeRaw }})</span>
+                                    </span>
+                                </div>
+                                
+                                <div class="w-full bg-slate-800 rounded-full h-1">
+                                    <!-- Dynamic Bar Color and Smooth Animation -->
+                                    <div class="h-full rounded-full transition-all duration-500 {{ $smokeColorBar }}" style="width: {{ $smokePercentage }}%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                @endforeach
                 </div>
             </div>
         </main>
     </div>
     
     <script>
-        // Set to fire every 4000ms (4 seconds) to perfectly match the ESP32 transmission delay
+        // Set to fire every 4000ms (4 seconds)
         setInterval(function() {
+            
+            // 1. Check if the user is currently focused on a form field
+            const activeTag = document.activeElement ? document.activeElement.tagName : '';
+            const isTyping = ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeTag);
+
+            // 2. If they are typing, abort this refresh cycle so we don't erase their work
+            if (isTyping) {
+                return; 
+            }
+
+            // 3. Otherwise, proceed with the normal live telemetry sync
             fetch(window.location.href)
                 .then(response => response.text())
                 .then(html => {
-                    // 1. Create a virtual document out of the newly fetched data
                     let parser = new DOMParser();
                     let doc = parser.parseFromString(html, 'text/html');
                     
-                    // 2. Silently swap the old dashboard numbers with the live database numbers
-                    document.getElementById('stats-container').innerHTML = doc.getElementById('stats-container').innerHTML;
-                    document.getElementById('telemetry-container').innerHTML = doc.getElementById('telemetry-container').innerHTML;
+                    let statsContainer = document.getElementById('stats-container');
+                    let telemetryContainer = document.getElementById('telemetry-container');
+
+                    // Add null checks just in case those IDs aren't on the current page
+                    if (statsContainer && doc.getElementById('stats-container')) {
+                        statsContainer.innerHTML = doc.getElementById('stats-container').innerHTML;
+                    }
+                    
+                    if (telemetryContainer && doc.getElementById('telemetry-container')) {
+                        telemetryContainer.innerHTML = doc.getElementById('telemetry-container').innerHTML;
+                    }
                 })
                 .catch(error => console.error('Telemetry Sync Error:', error));
+                
         }, 4000);
     </script>
 </body>

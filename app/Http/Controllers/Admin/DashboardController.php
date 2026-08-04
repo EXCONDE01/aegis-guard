@@ -22,13 +22,23 @@ class DashboardController extends Controller
 
     public function index()
     {
+        // Fetch nodes with their latest log, then map over them to check offline status
         $nodes = Node::with(['logs' => function($query) {
             $query->latest()->limit(1);
-        }])->get();
+        }])->get()->map(function ($node) {
+            
+            // Check if the node's last heartbeat is older than 15 seconds
+            $isOffline = $node->updated_at->diffInSeconds(now()) > 15;
+    
+            if ($isOffline) {
+                $node->status = 'OFFLINE';
+            }
+    
+            return $node;
+        });
         
         return view('dashboard', compact('nodes'));
     }
-
     public function history()
     {
         $logs = NodeLog::with('node')->latest()->paginate(15);
@@ -88,8 +98,28 @@ class DashboardController extends Controller
 
     public function nodesTelemetry()
     {
+        // 1. Keep your existing security check
         abort_if(auth()->user()->role !== 'admin', 403, 'Unauthorized Access: IT Operations Only.');
-        return response()->json(Node::orderByRaw("location_name = 'New Unassigned Node' DESC")->latest()->get());
+
+        // 2. Fetch the nodes using your exact custom sorting
+        $nodes = Node::orderByRaw("location_name = 'New Unassigned Node' DESC")->latest()->get();
+
+        // 3. Map through them to detect if any are dead
+        $nodesWithOfflineCheck = $nodes->map(function ($node) {
+            
+            // Check if the ESP32 hasn't talked to the database in over 15 seconds
+            $isOffline = $node->updated_at->diffInSeconds(now()) > 15;
+
+            if ($isOffline) {
+                $node->status = 'OFFLINE';
+                $node->latency = null; 
+            }
+
+            return $node;
+        });
+
+        // 4. Send the final data to the dashboard
+        return response()->json($nodesWithOfflineCheck);
     }
 
     public function updateNode(Request $request, $id)
