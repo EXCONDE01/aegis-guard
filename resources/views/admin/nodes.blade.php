@@ -14,8 +14,8 @@
     
     <div class="w-64 bg-slate-900 border-r border-slate-800 flex flex-col z-50 shrink-0">
         <div class="p-6">
-            <h2 class="text-xl font-bold text-white tracking-tight">Aegis-Guard</h2>
-            <p class="text-[10px] text-slate-500 uppercase font-semibold tracking-widest mt-1">Command Center</p>
+            <h2 class="text-xl font-bold text-white tracking-tight">Emergency Command Center</h2>
+            <p class="text-[10px] text-slate-500 uppercase font-semibold tracking-widest mt-1">Disaster Risk Reduction Portal</p>
         </div>
         <nav class="flex-1 px-4 space-y-1 text-sm font-medium overflow-y-auto">
             <div class="mb-4">
