@@ -94,11 +94,16 @@
 
         <main class="p-8 space-y-8 pb-20 max-w-7xl mx-auto">
             
-            @php
+             @php
                 $totalNodes = $nodes->count();
                 $criticalCount = $nodes->where('status', 'CRITICAL')->count();
                 $warningCount = $nodes->where('status', 'WARNING')->count();
                 $safeCount = $nodes->where('status', 'SAFE')->count();
+                
+                // Calculate how many nodes are offline, and subtract from total
+                $offlineCount = $nodes->where('status', 'OFFLINE')->count();
+                $activeNodes = $totalNodes - $offlineCount;
+                
                 $systemHealth = $totalNodes > 0 ? round(($safeCount / $totalNodes) * 100) : 0;
             @endphp
 
