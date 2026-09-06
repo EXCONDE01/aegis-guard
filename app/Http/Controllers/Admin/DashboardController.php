@@ -39,6 +39,7 @@ class DashboardController extends Controller
         
         return view('dashboard', compact('nodes'));
     }
+
     public function history()
     {
         $logs = NodeLog::with('node')->latest()->paginate(15);
@@ -47,18 +48,48 @@ class DashboardController extends Controller
 
     public function dispatchAlert()
     {
+        // 1. Check if the shop owner or staff are actually registered first
         $contacts = AlertContact::all();
         if ($contacts->isEmpty()) {
             return redirect()->route('dashboard')->with('error', 'BROADCAST ABORTED: No personnel registered in the directory.');
         }
 
-        $notifiedCount = 0;
-        foreach ($contacts as $contact) {
-            Log::info("EMERGENCY SMS DISPATCHED TO: {$contact->name} ({$contact->role}) at {$contact->phone}");
-            $notifiedCount++;
-        }
+        try {
+            Log::info('Manual Emergency Override triggered by System Administrator.');
 
-        return redirect()->route('dashboard')->with('emergency_success', "OVERRIDE ENGAGED: Emergency evacuation SMS securely dispatched to {$notifiedCount} authorized personnel.");
+            // 2. Fire the live Pushover API Alert (Force IPv4 for speed)
+            $response = Http::withOptions([
+                \CURLOPT_IPRESOLVE => \CURL_IPRESOLVE_V4
+            ])->post('https://api.pushover.net/1/messages.json', [
+                'token'    => env('PUSHOVER_APP_TOKEN'),
+                'user'     => env('PUSHOVER_USER_KEY'),
+                'title'    => 'EMERGENCY: MANUAL OVERRIDE',
+                'message'  => 'EVACUATE IMMEDIATELY: A manual emergency override has been triggered for the computer shop by the System Administrator.',
+                'priority' => 2,
+                'retry'    => 30,
+                'expire'   => 3600,
+                'sound'    => 'UDRRMC_SIREN', 
+            ]);
+
+            // 3. Handle the response and sync with your Blade UI banners
+            if ($response->successful()) {
+                
+                $notifiedCount = 0;
+                foreach ($contacts as $contact) {
+                    Log::info("EMERGENCY SIREN DISPATCHED FOR: {$contact->name} ({$contact->role})");
+                    $notifiedCount++;
+                }
+
+                return redirect()->route('dashboard')->with('emergency_success', "OVERRIDE ENGAGED: Emergency evacuation siren securely dispatched to the computer shop owner and {$notifiedCount} registered personnel.");
+            } else {
+                Log::error('Manual Dispatch Failed: ' . $response->body());
+                return redirect()->route('dashboard')->with('error', 'Failed to communicate with the push notification servers.');
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Manual Dispatch Exception: ' . $e->getMessage());
+            return redirect()->route('dashboard')->with('error', 'System error during emergency dispatch.');
+        }
     }
 
     public function contacts()

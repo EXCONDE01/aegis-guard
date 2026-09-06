@@ -293,15 +293,19 @@
                                 </div>
                             </div>
 
-                            <!-- Smoke Sensor Section -->
-                            @php
-                                // 1. Define your exact integer thresholds here 
-                                $criticalThreshold = $node->critical_limit; // Replace 'critical_limit' with your actual DB column name
-                                $warningThreshold = $node->warning_limit;   // Replace 'warning_limit' with your actual DB column name
+                           <!-- Smoke Sensor Section -->
+                           @php
+                                // 1. Pull the exact global thresholds used by your SensorController
+                                $config = \App\Models\Threshold::first();
+                                $criticalThreshold = $config ? $config->smoke_critical : 1000;
+                                $warningThreshold = $config ? $config->smoke_warning : 500;
 
                                 $smokeRaw = $latestLog ? $latestLog->smoke_level : 0;
                                 
-                                $smokePercentage = $criticalThreshold > 0 ? min(($smokeRaw / $criticalThreshold) * 100, 100) : 0;
+                                // 2. Calculate percentage against the ESP32 max analog reading (4095). 
+                                // This stops the bar from hitting 100% just because it reached a low threshold limit.
+                                $smokePercentage = min(($smokeRaw / 4095) * 100, 100);
+                                
                                 // 3. Evaluate the state: Safe, Warning, or Critical
                                 if ($smokeRaw >= $criticalThreshold) {
                                     $smokeColorText = 'text-red-400';
