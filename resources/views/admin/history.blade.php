@@ -1,158 +1,138 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aegis-Guard | Hazard History</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-</head>
-<body class="flex h-screen bg-slate-950 font-sans text-slate-300 overflow-hidden">
-    
-    <div class="w-64 bg-slate-900 border-r border-slate-800 flex flex-col z-50 shrink-0">
-        <div class="p-6">
-            <h2 class="text-xl font-bold text-white tracking-tight">Emergency Command Center</h2>
-            <p class="text-[10px] text-slate-500 uppercase font-semibold tracking-widest mt-1">Disaster Risk Reduction Portal</p>
-        </div>
-        <nav class="flex-1 px-4 space-y-1 text-sm font-medium overflow-y-auto">
-            <div class="mb-4">
-                <p class="px-3 text-[10px] font-bold tracking-widest text-slate-600 uppercase mb-2">Monitoring</p>
-                
-                <a href="{{ route('dashboard') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors {{ request()->routeIs('dashboard') ? 'bg-indigo-500/10 text-indigo-400' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50' }}">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
-                    Real-Time Map
-                </a>
-                
-                <a href="{{ route('admin.history') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors {{ request()->routeIs('admin.history') ? 'bg-indigo-500/10 text-indigo-400' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50' }}">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                    Hazard History
-                </a>
-                
-                <a href="{{ route('admin.contacts') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors {{ request()->routeIs('admin.contacts') ? 'bg-indigo-500/10 text-indigo-400' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50' }}">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
-                    Alert Contacts
-                </a>
-            </div>
+@extends('layouts.admin')
+@section('page_title', 'Hazard History | Aegis-Guard')
+@section('header_title', 'Audit & Compliance Logs')
+@section('header_subtitle', 'Historical environmental data and system state changes for incident investigation.')
 
-            @if(auth()->check() && auth()->user()->role === 'admin')
-            <div>
-                <p class="px-3 text-[10px] font-bold tracking-widest text-indigo-500 uppercase mb-2 mt-6">System Admin</p>
-                
-                <a href="{{ route('admin.nodes') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors mt-1 {{ request()->routeIs('admin.nodes') ? 'bg-indigo-500/10 text-indigo-400' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50' }}">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" /></svg>
-                    Hardware Nodes
-                </a>
-                
-                <a href="{{ route('admin.thresholds') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors mt-1 {{ request()->routeIs('admin.thresholds') ? 'bg-indigo-500/10 text-indigo-400' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50' }}">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                    Threshold Config
-                </a>
-                
-                <a href="{{ route('admin.network') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors mt-1 {{ request()->routeIs('admin.network') ? 'bg-indigo-500/10 text-indigo-400' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50' }}">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0V12a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 12V5.25" /></svg>
-                    Gateway & VLAN
-                </a>
-                
-                <a href="{{ route('admin.backups.index') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors mt-1 {{ request()->routeIs('admin.backups.*') ? 'bg-indigo-500/10 text-indigo-400' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50' }}">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25-4.125V6.375m16.5 0v3.75m-16.5-3.75v3.75m16.5 0v3.75C20.25 16.153 16.556 18 12 18s-8.25-1.847-8.25-4.125v-3.75m16.5 0c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125" /></svg>
-                    System Backups
-                </a>
-            </div>
-            @endif
-        </nav>
-        
-        <div class="p-4 bg-slate-950/50 text-xs font-medium text-slate-400 border-t border-slate-800 flex items-center justify-between">
-            <div class="flex items-center gap-2 text-indigo-400">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>
-                System Administrator
-            </div>
-            <form method="POST" action="{{ route('logout') }}">
-                @csrf
-                <button type="submit" class="hover:text-white transition-colors">Logout</button>
-            </form>
+@section('header_actions')
+    <!-- Pass the current filters to the export route so it only downloads what you are looking at -->
+    <a href="{{ route('admin.history.export', request()->all()) }}" 
+       class="bg-gray-800 hover:bg-gray-900 text-white text-[13px] font-bold px-5 py-2.5 rounded shadow-sm transition-all flex items-center gap-2 uppercase tracking-wider">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+        Export CSV Report
+    </a>
+@endsection
+
+@section('content')
+<div class="space-y-6">
+
+    <!-- SUMMARY METRICS -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+            <h3 class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Total Logs (30 Days)</h3>
+            <div class="text-3xl font-black text-gray-900 font-telemetry">{{ number_format($totalEvents) }}</div>
+        </div>
+        <div class="bg-white border {{ $criticalBreaches > 0 ? 'border-red-300 bg-red-50' : 'border-gray-200' }} rounded-xl p-6 shadow-sm">
+            <h3 class="text-[10px] font-bold {{ $criticalBreaches > 0 ? 'text-red-600' : 'text-gray-500' }} uppercase tracking-widest mb-2">Critical Breaches</h3>
+            <div class="text-3xl font-black {{ $criticalBreaches > 0 ? 'text-red-600' : 'text-gray-900' }} font-telemetry">{{ number_format($criticalBreaches) }}</div>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+            <h3 class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Most Volatile Zone</h3>
+            <div class="text-xl font-bold text-gray-900 mt-2 truncate">{{ $volatileZoneName }}</div>
         </div>
     </div>
 
-    <div class="flex-1 flex flex-col h-full overflow-hidden">
-        <header class="bg-slate-950/80 backdrop-blur-sm border-b border-slate-800 p-8 flex justify-between items-end z-30">
-            <div>
-                <h1 class="text-2xl font-bold text-white">Hazard History Logs</h1>
-                <p class="text-sm text-slate-500 mt-1">Post-disaster analysis & complete audit trail.</p>
-            </div>
-        </header>
+    <div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+        
+        <!-- FILTER BAR -->
+        <div class="p-5 border-b border-gray-100 bg-gray-50/50">
+            <form method="GET" action="{{ route('admin.history') }}" class="flex flex-col md:flex-row gap-4 items-end">
+                <div class="w-full md:w-64">
+                    <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Filter by Zone</label>
+                    <select name="node_id" class="w-full bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-sky-500 focus:border-sky-500 p-2.5">
+                        <option value="">All Zones</option>
+                        @foreach($nodes as $node)
+                            <option value="{{ $node->id }}" {{ request('node_id') == $node->id ? 'selected' : '' }}>
+                                {{ $node->location_name }} ({{ $node->hardware_id }})
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+                
+                <div class="w-full md:w-48">
+                    <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">System State</label>
+                    <select name="status" class="w-full bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-sky-500 focus:border-sky-500 p-2.5">
+                        <option value="">All States</option>
+                        <option value="SAFE" {{ request('status') == 'SAFE' ? 'selected' : '' }}>SAFE</option>
+                        <option value="WARNING" {{ request('status') == 'WARNING' ? 'selected' : '' }}>WARNING</option>
+                        <option value="CRITICAL" {{ request('status') == 'CRITICAL' ? 'selected' : '' }}>CRITICAL</option>
+                    </select>
+                </div>
 
-        <main class="p-8 flex-1 overflow-y-auto max-w-7xl mx-auto w-full">
-            <div class="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-sm">
-                <table class="w-full text-left text-sm text-slate-400">
-                    <thead class="bg-slate-950/50 text-xs font-semibold text-slate-500 border-b border-slate-800">
-                        <tr>
-                            <th class="px-6 py-4">Timestamp</th>
-                            <!-- Updated Table Header -->
-                            <th class="px-6 py-4">Department / Room</th>
-                            <th class="px-6 py-4">Status Event</th>
-                            <th class="px-6 py-4">Metrics (Temp / Smoke)</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-800">
-                        @foreach($logs as $log)
-                        <tr class="hover:bg-slate-800/50 transition-colors">
-                            <td class="px-6 py-4 whitespace-nowrap font-medium text-slate-300">
-                                {{ $log->created_at->format('M d, Y - H:i:s') }}
+                <div class="flex gap-2 w-full md:w-auto">
+                    <button type="submit" class="flex-1 md:flex-none bg-sky-600 hover:bg-sky-700 text-white px-5 py-2.5 rounded-lg text-xs font-bold tracking-wide transition-all shadow-sm uppercase">
+                        Filter Log
+                    </button>
+                    @if(request()->has('status') || request()->has('node_id'))
+                        <a href="{{ route('admin.history') }}" class="flex-1 md:flex-none bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-5 py-2.5 rounded-lg text-xs font-bold tracking-wide transition-all text-center uppercase shadow-sm">
+                            Clear
+                        </a>
+                    @endif
+                </div>
+            </form>
+        </div>
+
+        <!-- DATA TABLE -->
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm text-left text-gray-600">
+                <thead class="text-[10px] text-gray-500 uppercase tracking-widest bg-gray-50 border-b border-gray-100">
+                    <tr>
+                        <th class="px-6 py-4 font-bold">Timestamp</th>
+                        <th class="px-6 py-4 font-bold">Hardware / Zone</th>
+                        <th class="px-6 py-4 font-bold text-right">Ambient Temp</th>
+                        <th class="px-6 py-4 font-bold text-right">Particulate Raw</th>
+                        <th class="px-6 py-4 font-bold text-center">Trigger State</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    @forelse($logs as $log)
+                        @php
+                            $isCritical = $log->status === 'CRITICAL';
+                            $isWarning = $log->status === 'WARNING';
+                            $dotColor = $isCritical ? 'bg-red-500' : ($isWarning ? 'bg-amber-500' : 'bg-emerald-500');
+                            $badgeBg = $isCritical ? 'bg-red-50 text-red-700 border-red-100' : ($isWarning ? 'bg-amber-50 text-amber-700 border-amber-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100');
+                        @endphp
+                        <tr class="hover:bg-sky-50/30 transition-colors bg-white">
+                            <td class="px-6 py-4 font-telemetry whitespace-nowrap text-gray-900">
+                                {{ $log->created_at->format('Y-m-d') }} <span class="text-gray-400 ml-1">{{ $log->created_at->format('H:i:s') }}</span>
                             </td>
-                            
-                            <!-- Updated Location Block with Campus Terminology -->
                             <td class="px-6 py-4">
-                                <p class="font-medium text-slate-200">{{ $log->node->location_name }}</p>
-                                <p class="text-xs text-slate-400 mt-0.5">
-                                    <span class="text-slate-500 font-medium mr-1">Room:</span> 
-                                    {{ $log->node->specific_area ?? $log->node->hardware_id }}
-                                </p>
+                                <div class="font-bold text-gray-900">{{ $log->node->location_name ?? 'Decommissioned Node' }}</div>
+                                <div class="font-telemetry text-[10px] text-gray-400 mt-0.5">{{ $log->node->hardware_id ?? '--' }}</div>
                             </td>
-                            
-                            <td class="px-6 py-4">
-                                <span class="px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wider {{ $log->status == 'CRITICAL' ? 'bg-red-500/10 text-red-500' : ($log->status == 'WARNING' ? 'bg-amber-500/10 text-amber-500' : 'bg-emerald-500/10 text-emerald-500') }}">
+                            <td class="px-6 py-4 font-telemetry text-right font-bold {{ $isCritical ? 'text-red-600' : 'text-sky-600' }}">
+                                {{ $log->temperature }}°C
+                            </td>
+                            <td class="px-6 py-4 font-telemetry text-right font-bold {{ $isCritical ? 'text-red-600' : 'text-violet-600' }}">
+                                {{ $log->smoke_level }}
+                            </td>
+                            <td class="px-6 py-4 text-center">
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[9px] font-bold uppercase tracking-widest border {{ $badgeBg }}">
+                                    <span class="w-1.5 h-1.5 rounded-full {{ $dotColor }}"></span>
                                     {{ $log->status }}
                                 </span>
                             </td>
-                            
-                            <!-- Updated Metrics Block for True ESP32 Math -->
-                            <td class="px-6 py-4 font-mono text-xs">
-                                @php
-                                    // Convert the raw ESP32 analog data (0-4095) to a clean 0-100% format
-                                    $smokeRaw = $log->smoke_level ?? 0;
-                                    $smokePercentage = min(($smokeRaw / 4095) * 100, 100);
-                                    
-                                    // Define when the text should turn red/amber in the history logs
-                                    $isTempHigh = $log->temperature > 40;
-                                    $isSmokeHigh = $smokeRaw >= 1200; // Matches your warning threshold from the dashboard
-                                @endphp
-                            
-                                <!-- Temperature Display -->
-                                <span class="{{ $isTempHigh ? 'text-red-400 font-bold' : 'text-slate-300' }}">
-                                    {{ $log->temperature ?? '--' }}°C
-                                </span> 
-                                
-                                <span class="text-slate-600 px-2">|</span> 
-                                
-                                <!-- Smoke Display (Now accurate out of 100%) -->
-                                <span class="{{ $isSmokeHigh ? 'text-amber-400 font-bold' : 'text-slate-300' }}">
-                                    Smoke: {{ number_format($smokePercentage, 1) }}%
-                                    <span class="text-[10px] text-slate-500 ml-1 font-sans font-normal">(Raw: {{ $smokeRaw }})</span>
-                                </span>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="5" class="px-6 py-12 text-center">
+                                <div class="flex flex-col items-center justify-center">
+                                    <svg class="w-10 h-10 text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                    <p class="text-sm font-bold text-gray-900">No logs found</p>
+                                    <p class="text-xs text-gray-500 mt-1">Adjust your filters or wait for edge devices to transmit data.</p>
+                                </div>
                             </td>
                         </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-                @if($logs->isEmpty())
-                <div class="p-12 text-center text-slate-500 text-sm">
-                    No historical logs recorded yet.
-                </div>
-                @endif
-            </div>
-            <div class="mt-6 dark-pagination">
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Pagination -->
+        @if($logs->hasPages())
+            <div class="p-5 border-t border-gray-100 bg-gray-50">
                 {{ $logs->links() }}
             </div>
-        </main>
+        @endif
     </div>
-</body>
-</html>
+</div>
+@endsection

@@ -9,7 +9,6 @@ class Node extends Model
 {
     use HasFactory;
 
-    // ADDED: ip_address, latency, uptime
     protected $fillable = [
         'hardware_id', 
         'location_name', 
@@ -17,7 +16,13 @@ class Node extends Model
         'status',
         'ip_address',
         'latency',
-        'uptime'
+        'uptime',
+        // --- NEW ZONAL OVERRIDE COLUMNS ---
+        'has_custom_thresholds',
+        'custom_temp_warning',
+        'custom_temp_critical',
+        'custom_smoke_warning',
+        'custom_smoke_critical'
     ];
 
     public function logs()

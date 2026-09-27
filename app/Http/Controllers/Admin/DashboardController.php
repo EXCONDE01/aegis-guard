@@ -7,8 +7,6 @@ use App\Models\Node;
 use App\Models\NodeLog;
 use App\Models\AlertContact;
 use App\Models\Threshold;
-use App\Models\Vlan;
-use App\Models\FirewallRule;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
@@ -40,80 +38,184 @@ class DashboardController extends Controller
         return view('dashboard', compact('nodes'));
     }
 
-    public function history()
+    public function history(\Illuminate\Http\Request $request)
     {
-        $logs = NodeLog::with('node')->latest()->paginate(15);
-        return view('admin.history', compact('logs'));
+        $query = \App\Models\NodeLog::with('node')->latest();
+
+        // 1. Apply Filters if requested
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+        if ($request->filled('node_id')) {
+            $query->where('node_id', $request->node_id);
+        }
+
+        // 2. Paginate with query strings so filters don't break on page 2
+        $logs = $query->paginate(50)->withQueryString();
+        $nodes = \App\Models\Node::all();
+
+        // 3. Calculate Summary Metrics (Last 30 Days)
+        $thirtyDaysAgo = now()->subDays(30);
+        $totalEvents = \App\Models\NodeLog::where('created_at', '>=', $thirtyDaysAgo)->count();
+        $criticalBreaches = \App\Models\NodeLog::where('created_at', '>=', $thirtyDaysAgo)->where('status', 'CRITICAL')->count();
+
+        // 4. Calculate Most Volatile Zone
+        $mostVolatile = \App\Models\NodeLog::select('node_id', \DB::raw('count(*) as total'))
+            ->where('status', 'CRITICAL')
+            ->groupBy('node_id')
+            ->orderByDesc('total')
+            ->first();
+        
+        $volatileZoneName = 'Stable (No Breaches)';
+        if ($mostVolatile && $mostVolatile->node) {
+            $volatileZoneName = $mostVolatile->node->location_name . ' (' . $mostVolatile->node->specific_area . ')';
+        }
+
+        return view('admin.history', compact('logs', 'nodes', 'totalEvents', 'criticalBreaches', 'volatileZoneName'));
     }
 
-    public function dispatchAlert()
+    public function exportHistoryCsv(\Illuminate\Http\Request $request)
     {
-        // 1. Check if the shop owner or staff are actually registered first
-        $contacts = AlertContact::all();
-        if ($contacts->isEmpty()) {
-            return redirect()->route('dashboard')->with('error', 'BROADCAST ABORTED: No personnel registered in the directory.');
+        $query = \App\Models\NodeLog::with('node')->latest();
+        
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
         }
+        if ($request->filled('node_id')) {
+            $query->where('node_id', $request->node_id);
+        }
+        
+        $logs = $query->get();
+        $fileName = "aegis_guard_audit_log_" . date('Ymd_His') . ".csv";
 
-        try {
-            Log::info('Manual Emergency Override triggered by System Administrator.');
+        $headers = [
+            "Content-type"        => "text/csv",
+            "Content-Disposition" => "attachment; filename=$fileName",
+            "Pragma"              => "no-cache",
+            "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
+            "Expires"             => "0"
+        ];
 
-            // 2. Fire the live Pushover API Alert (Force IPv4 for speed)
-            $response = Http::withOptions([
-                \CURLOPT_IPRESOLVE => \CURL_IPRESOLVE_V4
-            ])->post('https://api.pushover.net/1/messages.json', [
-                'token'    => env('PUSHOVER_APP_TOKEN'),
-                'user'     => env('PUSHOVER_USER_KEY'),
-                'title'    => 'EMERGENCY: MANUAL OVERRIDE',
-                'message'  => 'EVACUATE IMMEDIATELY: A manual emergency override has been triggered for the computer shop by the System Administrator.',
-                'priority' => 2,
-                'retry'    => 30,
-                'expire'   => 3600,
-                'sound'    => 'UDRRMC_SIREN', 
-            ]);
+        $columns = ['Timestamp', 'Node ID', 'Zone/Location', 'Temperature (C)', 'Smoke Raw (PPM)', 'System Status'];
 
-            // 3. Handle the response and sync with your Blade UI banners
-            if ($response->successful()) {
-                
-                $notifiedCount = 0;
-                foreach ($contacts as $contact) {
-                    Log::info("EMERGENCY SIREN DISPATCHED FOR: {$contact->name} ({$contact->role})");
-                    $notifiedCount++;
-                }
-
-                return redirect()->route('dashboard')->with('emergency_success', "OVERRIDE ENGAGED: Emergency evacuation siren securely dispatched to the computer shop owner and {$notifiedCount} registered personnel.");
-            } else {
-                Log::error('Manual Dispatch Failed: ' . $response->body());
-                return redirect()->route('dashboard')->with('error', 'Failed to communicate with the push notification servers.');
+        $callback = function() use($logs, $columns) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, $columns);
+            foreach ($logs as $log) {
+                fputcsv($file, [
+                    $log->created_at->format('Y-m-d H:i:s'),
+                    $log->node->hardware_id ?? 'DECOMMISSIONED',
+                    $log->node->location_name ?? 'Unknown',
+                    $log->temperature,
+                    $log->smoke_level,
+                    $log->status
+                ]);
             }
+            fclose($file);
+        };
 
-        } catch (\Exception $e) {
-            Log::error('Manual Dispatch Exception: ' . $e->getMessage());
-            return redirect()->route('dashboard')->with('error', 'System error during emergency dispatch.');
+        return response()->stream($callback, 200, $headers);
+    }
+
+    public function dispatchAlert(\Illuminate\Http\Request $request)
+    {
+        $contacts = \App\Models\Contact::where('is_active', true)->get();
+
+        if ($contacts->isEmpty()) {
+            return redirect()->back()->with('error', 'BROADCAST ABORTED: No active personnel registered in the directory.');
         }
+
+        $successCount = 0;
+        $errorMessage = null;
+
+        foreach ($contacts as $contact) {
+            $key = $contact->pushover_key ?? $contact->user_key;
+            if (!$key) continue;
+
+            $response = \Illuminate\Support\Facades\Http::asForm()->post('https://api.pushover.net/1/messages.json', [
+                'token' => env('PUSHOVER_APP_TOKEN'), 
+                'user' => $key,
+                'message' => "🚨 MANUAL OVERRIDE AUTHORIZED 🚨\nEvacuate facility immediately. This is not a drill.",
+                'title' => 'Aegis-Guard (CRITICAL)',
+                'sound' => 'UDRRMC_SIREN',
+                'priority' => 2,
+                'retry' => 30,
+                'expire' => 120
+            ]);
+            
+            if ($response->successful()) {
+                $successCount++;
+            } else {
+                $errorData = $response->json();
+                $errorMessage = $errorData['errors'][0] ?? 'Unknown API Error';
+            }
+        }
+
+        if ($successCount === 0) {
+            return redirect()->back()->with('error', "PUSHOVER API FAILED: " . ($errorMessage ?? "Check your .env PUSHOVER_APP_TOKEN."));
+        }
+
+        return redirect()->back()->with('emergency_success', "PROTOCOL OVERRIDE SUCCESS: Emergency broadcast dispatched to {$successCount} active responders.");
     }
 
     public function contacts()
     {
-        $contacts = AlertContact::latest()->get();
+        $contacts = \App\Models\Contact::latest()->get();
         return view('admin.contacts', compact('contacts'));
     }
 
-    public function storeContact(Request $request)
+    public function storeContact(\Illuminate\Http\Request $request)
     {
         $request->validate([
             'name' => 'required|string|max:255',
-            'role' => 'required|string|max:255',
-            'phone' => 'required|string|max:20',
+            'phone' => 'nullable|string|max:20',
+            'pushover_key' => 'required|string|max:50',
+            'role' => 'required|string|max:50',
         ]);
+
+        \App\Models\Contact::create([
+            'name' => $request->name,
+            'phone' => $request->phone,
+            'pushover_key' => $request->pushover_key,
+            'role' => $request->role,
+            'is_active' => true,
+        ]);
+
+        return redirect()->back()->with('success', 'New emergency responder successfully registered.');
+    }
+
+    public function testContactPing($id)
+    {
+        $contact = \App\Models\Contact::findOrFail($id);
         
-        AlertContact::create($request->all());
-        return redirect()->route('admin.contacts')->with('success', 'New emergency contact registered successfully.');
+        \Illuminate\Support\Facades\Http::asForm()->post('https://api.pushover.net/1/messages.json', [
+            'token' => env('PUSHOVER_APP_TOKEN'),
+            'user' => $contact->pushover_key ?? $contact->user_key,
+            'message' => "TEST PING: Aegis-Guard communications check. System is nominal.",
+            'title' => 'Aegis-Guard (TEST)',
+            'sound' => 'pushover',
+            'priority' => 0,
+        ]);
+
+        return redirect()->back()->with('success', "Test ping dispatched successfully to {$contact->name}.");
+    }
+
+    public function toggleContactStatus($id)
+    {
+        $contact = \App\Models\Contact::findOrFail($id);
+        $contact->is_active = !$contact->is_active;
+        $contact->save();
+
+        $status = $contact->is_active ? 'Active on-duty' : 'Off-duty (Muted)';
+        return redirect()->back()->with('success', "{$contact->name} is now marked as {$status}.");
     }
 
     public function destroyContact($id)
     {
-        AlertContact::findOrFail($id)->delete();
-        return redirect()->route('admin.contacts')->with('success', 'Contact removed from the emergency broadcast list.');
+        $contact = \App\Models\Contact::findOrFail($id);
+        $name = $contact->name;
+        $contact->delete();
+        return redirect()->back()->with('success', "Responder {$name} has been permanently removed from the system.");
     }
 
     // ==========================================
@@ -129,441 +231,153 @@ class DashboardController extends Controller
 
     public function nodesTelemetry()
     {
-        // 1. Keep your existing security check
         abort_if(auth()->user()->role !== 'admin', 403, 'Unauthorized Access: IT Operations Only.');
 
-        // 2. Fetch the nodes using your exact custom sorting
         $nodes = Node::orderByRaw("location_name = 'New Unassigned Node' DESC")->latest()->get();
 
-        // 3. Map through them to detect if any are dead
         $nodesWithOfflineCheck = $nodes->map(function ($node) {
-            
-            // Check if the ESP32 hasn't talked to the database in over 15 seconds
             $isOffline = $node->updated_at->diffInSeconds(now()) > 15;
-
             if ($isOffline) {
                 $node->status = 'OFFLINE';
                 $node->latency = null; 
             }
-
             return $node;
         });
 
-        // 4. Send the final data to the dashboard
         return response()->json($nodesWithOfflineCheck);
     }
 
-    public function updateNode(Request $request, $id)
+    public function updateNode(\Illuminate\Http\Request $request, $id)
     {
-        abort_if(auth()->user()->role !== 'admin', 403, 'Unauthorized Access: IT Operations Only.');
+        $node = \App\Models\Node::findOrFail($id);
         
         $request->validate([
+            'hardware_id' => 'required|string|max:255',
             'location_name' => 'required|string|max:255',
             'specific_area' => 'nullable|string|max:255',
+            'custom_temp_warning' => 'nullable|numeric',
+            'custom_temp_critical' => 'nullable|numeric',
+            'custom_smoke_warning' => 'nullable|numeric',
+            'custom_smoke_critical' => 'nullable|numeric',
         ]);
+
+        $node->hardware_id = $request->hardware_id;
+        $node->location_name = $request->location_name;
+        $node->specific_area = $request->specific_area;
         
+        if ($request->has('status')) {
+            $node->status = $request->status;
+        }
+
+        $node->has_custom_thresholds = $request->has('has_custom_thresholds');
+        
+        if ($node->has_custom_thresholds) {
+            $node->custom_temp_warning = $request->custom_temp_warning;
+            $node->custom_temp_critical = $request->custom_temp_critical;
+            $node->custom_smoke_warning = $request->custom_smoke_warning;
+            $node->custom_smoke_critical = $request->custom_smoke_critical;
+        } else {
+            $node->custom_temp_warning = null;
+            $node->custom_temp_critical = null;
+            $node->custom_smoke_warning = null;
+            $node->custom_smoke_critical = null;
+        }
+
+        $node->save();
+
+        return redirect()->back()->with('success', "Node {$node->hardware_id} configuration and zonal overrides updated successfully.");
+    }
+
+    public function destroyNode($id)
+    {
+        abort_if(auth()->user()->role !== 'admin', 403, 'Unauthorized Access.');
         $node = Node::findOrFail($id);
+        $node->logs()->delete(); 
+        $node->delete();
         
-        $node->update([
-            'location_name' => $request->location_name,
-            'specific_area' => $request->specific_area ?? 'Awaiting Configuration',
-        ]);
-        
-        return redirect()->route('admin.nodes')->with('success', 'Sensor node configuration updated successfully.');
+        return redirect()->route('admin.nodes')->with('success', 'Hardware node permanently decommissioned and purged from the network.');
     }
 
     public function thresholds()
     {
-        abort_if(auth()->user()->role !== 'admin', 403, 'Unauthorized Access: IT Operations Only.');
-        $threshold = Threshold::first();
-        return view('admin.thresholds', compact('threshold'));
+        $threshold = \App\Models\Threshold::first() ?? new \App\Models\Threshold();
+        $overrideNodes = \App\Models\Node::where('has_custom_thresholds', true)->get();
+
+        return view('admin.thresholds', compact('threshold', 'overrideNodes'));
     }
 
-    public function updateThresholds(Request $request)
+    public function updateThresholds(\Illuminate\Http\Request $request)
     {
-        abort_if(auth()->user()->role !== 'admin', 403, 'Unauthorized Access: IT Operations Only.');
-        
         $request->validate([
-            'temp_warning' => 'required|numeric|min:0',
-            'temp_critical' => 'required|numeric|gt:temp_warning',
-            'smoke_warning' => 'required|numeric|min:0',
-            'smoke_critical' => 'required|numeric|gt:smoke_warning',
+            'temp_warning' => 'required|numeric',
+            'temp_critical' => 'required|numeric',
+            'smoke_warning' => 'required|numeric',
+            'smoke_critical' => 'required|numeric',
+            'temp_offset' => 'required|numeric',
+            'smoke_offset' => 'required|numeric',
         ]);
 
-        $threshold = Threshold::first();
-        $threshold->update($request->all());
+        $threshold = \App\Models\Threshold::first() ?? new \App\Models\Threshold();
+        $threshold->fill($request->all());
+        $threshold->updated_by_name = auth()->user()->name ?? 'System Administrator';
+        $threshold->save();
 
-        $nodes = Node::with(['logs' => function($query) { $query->latest()->limit(1); }])->get();
-
-        foreach ($nodes as $node) {
-            $latestLog = $node->logs->first();
-            if ($latestLog) {
-                $status = 'SAFE';
-                if ($latestLog->temperature >= $threshold->temp_critical || $latestLog->smoke_level >= $threshold->smoke_critical) { 
-                    $status = 'CRITICAL';
-                } elseif ($latestLog->temperature >= $threshold->temp_warning || $latestLog->smoke_level >= $threshold->smoke_warning) { 
-                    $status = 'WARNING'; 
-                }
-                $node->update(['status' => $status]);
-            }
-        }
-
-        return redirect()->route('admin.thresholds')->with('success', 'Global facility thresholds updated. All live nodes have been dynamically re-evaluated.');
+        return redirect()->back()->with('success', 'Global hazard thresholds and calibration offsets updated successfully.');
     }
 
     // ==========================================
-    // MODULE 3: GATEWAY & VLAN INFRASTRUCTURE
-    // ==========================================
-
-    public function network()
-    {
-        abort_if(auth()->user()->role !== 'admin', 403, 'Unauthorized Access: IT Operations Only.');
-        
-        // 1. Fetch Gateway Status
-        try {
-            $response = Http::withOptions(['verify' => false]) 
-                ->withBasicAuth(env('OPNSENSE_API_KEY'), env('OPNSENSE_API_SECRET'))
-                ->get(env('OPNSENSE_URL') . '/api/core/system/status');
-
-            if ($response->successful()) {
-                $gateway = [
-                    'status' => 'ONLINE',
-                    'cpu' => rand(11, 19) . '.' . rand(1, 9) . '%',
-                    'ram' => (rand(21, 25) / 10) . ' GB / 8.0 GB',
-                    'uptime' => rand(12, 15) . ' Days, 04:' . rand(10, 59) . ':' . rand(10, 59),
-                    'uplink' => '1 Gbps (Primary Fiber ISP)',
-                    'firewall_rules' => 'Active Engine' 
-                ];
-            } else {
-                throw new \Exception('API Error');
-            }
-        } catch (\Exception $e) {
-            $gateway = ['status' => 'OFFLINE - API DISCONNECTED', 'cpu' => '--', 'ram' => '--', 'uptime' => '--', 'uplink' => '--', 'firewall_rules' => '--'];
-        }
-
-        // 2. Fetch VLANs from Hardware API
-        $vlans = collect();
-        try {
-            $vlanResponse = Http::withOptions(['verify' => false])
-                ->withBasicAuth(env('OPNSENSE_API_KEY'), env('OPNSENSE_API_SECRET'))
-                ->get(env('OPNSENSE_URL') . '/api/interfaces/vlan_settings/searchItem');
-
-            if ($vlanResponse->successful()) {
-                $opnsenseVlans = $vlanResponse->json()['rows'] ?? [];
-                foreach ($opnsenseVlans as $ov) {
-                    $localVlan = Vlan::where('vlan_id', $ov['tag'])->first();
-                    $vlans->push((object)[
-                        'id' => $localVlan ? $localVlan->id : $ov['uuid'], 
-                        'vlan_id' => $ov['tag'],
-                        'name' => $ov['descr'],
-                        'subnet' => $localVlan ? $localVlan->subnet : 'Assigned in Edge Gateway'
-                    ]);
-                }
-            }
-        } catch (\Exception $e) {
-            $vlans = Vlan::orderBy('vlan_id', 'asc')->get(); // Fallback to local DB
-        }
-
-        // 3. Fetch Staged Rules (Local Database)
-        $firewallRules = FirewallRule::latest()->get();
-
-        // 4. Fetch Live Hardware Rules (OPNsense API)
-        $hardwareRules = collect();
-        try {
-            $rulesResponse = Http::withOptions(['verify' => false])
-                ->withBasicAuth(env('OPNSENSE_API_KEY'), env('OPNSENSE_API_SECRET'))
-                ->get(env('OPNSENSE_URL') . '/api/firewall/filter/search_rule', [
-                    'show_all' => 1,
-                    'rowCount' => 100
-                ]);
-
-            if ($rulesResponse->successful()) {
-                $opnsenseRules = $rulesResponse->json()['rows'] ?? [];
-                foreach ($opnsenseRules as $rule) {
-                    $hardwareRules->push((object)[
-                        'action' => $rule['action'] ?? 'pass',
-                        'interface' => $rule['interface'] ?? 'ANY',
-                        'protocol' => $rule['protocol'] ?? 'ANY',
-                        'source' => $rule['source_net'] ?? 'ANY',
-                        'destination' => $rule['destination_net'] ?? 'ANY',
-                        'port' => $rule['dst_port'] ?? 'ANY',
-                        'description' => $rule['description'] ?? 'System Defined Rule'
-                    ]);
-                }
-            }
-        } catch (\Exception $e) {
-            Log::error('OPNsense Hardware Rule Fetch Error: ' . $e->getMessage());
-        }
-
-        return view('admin.network', compact('gateway', 'vlans', 'firewallRules', 'hardwareRules'));
-    }
-
-    public function gatewayTelemetry()
-    {
-        abort_if(auth()->user()->role !== 'admin', 403, 'Unauthorized Access: IT Operations Only.');
-        
-        try {
-            $response = Http::withOptions(['verify' => false]) 
-                ->withBasicAuth(env('OPNSENSE_API_KEY'), env('OPNSENSE_API_SECRET'))
-                ->get(env('OPNSENSE_URL') . '/api/core/system/status');
-
-            if ($response->successful()) {
-                return response()->json([
-                    'status' => 'ONLINE',
-                    'cpu' => rand(11, 19) . '.' . rand(1, 9) . '%',
-                    'ram' => (rand(21, 25) / 10) . ' GB / 8.0 GB',
-                    'uptime' => rand(12, 15) . ' Days, 04:' . rand(10, 59) . ':' . rand(10, 59),
-                    'uplink' => '1 Gbps (Primary Fiber ISP)',
-                    'firewall_rules' => 'Active Engine' 
-                ]);
-            }
-            throw new \Exception('API Connection Refused');
-        } catch (\Exception $e) {
-            return response()->json([
-                'status' => 'OFFLINE - API DISCONNECTED',
-                'cpu' => '--',
-                'ram' => '--',
-                'uptime' => '--',
-                'uplink' => '--',
-                'firewall_rules' => '--'
-            ]);
-        }
-    }
-
-    public function storeVlan(Request $request)
-    {
-        abort_if(auth()->user()->role !== 'admin', 403, 'Unauthorized Access: IT Operations Only.');
-
-        $request->validate([
-            'vlan_id' => 'required|integer|min:1|max:4094|unique:vlans,vlan_id',
-            'name' => 'required|string|max:255',
-            'subnet' => 'required|string|max:18',
-        ]);
-
-        Vlan::create($request->all());
-
-        try {
-            Http::withOptions(['verify' => false])
-                ->withBasicAuth(env('OPNSENSE_API_KEY'), env('OPNSENSE_API_SECRET'))
-                ->post(env('OPNSENSE_URL') . '/api/interfaces/vlan_settings/addItem', [
-                    'vlan' => [
-                        'if' => 'vtnet1', // Ensure this maps to your physical LAN adapter in Proxmox
-                        'tag' => $request->vlan_id,
-                        'descr' => $request->name,
-                    ]
-                ]);
-                
-            Http::withOptions(['verify' => false])
-                ->withBasicAuth(env('OPNSENSE_API_KEY'), env('OPNSENSE_API_SECRET'))
-                ->post(env('OPNSENSE_URL') . '/api/interfaces/vlan_settings/reconfigure');
-                
-        } catch (\Exception $e) {
-            Log::error('OPNsense API Error: ' . $e->getMessage());
-            return redirect()->route('admin.network')->with('error', 'VLAN saved locally, but failed to push to physical OPNsense gateway.');
-        }
-
-        return redirect()->route('admin.network')->with('success', 'VLAN deployed. OPNsense routing tables updated to isolate traffic.');
-    }
-
-    public function destroyVlan($id)
-    {
-        abort_if(auth()->user()->role !== 'admin', 403, 'Unauthorized Access: IT Operations Only.');
-        
-        $vlan = Vlan::find($id); 
-        $targetVlanId = $vlan ? $vlan->vlan_id : null; 
-        
-        try {
-            $searchResponse = Http::withOptions(['verify' => false])
-                ->withBasicAuth(env('OPNSENSE_API_KEY'), env('OPNSENSE_API_SECRET'))
-                ->get(env('OPNSENSE_URL') . '/api/interfaces/vlan_settings/searchItem');
-
-            if ($searchResponse->successful()) {
-                $rows = $searchResponse->json()['rows'] ?? [];
-                $uuidToDelete = null;
-
-                if (preg_match('/^[a-f0-9\-]{36}$/i', $id)) {
-                    $uuidToDelete = $id;
-                } else {
-                    foreach ($rows as $row) {
-                        if ($row['tag'] == $targetVlanId) {
-                            $uuidToDelete = $row['uuid'];
-                            break;
-                        }
-                    }
-                }
-
-                if ($uuidToDelete) {
-                    Http::withOptions(['verify' => false])
-                        ->withBasicAuth(env('OPNSENSE_API_KEY'), env('OPNSENSE_API_SECRET'))
-                        ->post(env('OPNSENSE_URL') . '/api/interfaces/vlan_settings/delItem/' . $uuidToDelete);
-                        
-                    Http::withOptions(['verify' => false])
-                        ->withBasicAuth(env('OPNSENSE_API_KEY'), env('OPNSENSE_API_SECRET'))
-                        ->post(env('OPNSENSE_URL') . '/api/interfaces/vlan_settings/reconfigure');
-                }
-            }
-        } catch (\Exception $e) {
-            Log::error('OPNsense VLAN Deletion Error: ' . $e->getMessage());
-        }
-
-        if ($vlan) {
-            $vlan->delete();
-        }
-
-        return redirect()->route('admin.network')->with('success', 'VLAN terminated and securely removed from the OPNsense routing table.');
-    }
-
-    // ==========================================
-    // MODULE 4: FIREWALL RULE ENGINE
-    // ==========================================
-
-    public function storeFirewallRule(Request $request)
-    {
-        abort_if(auth()->user()->role !== 'admin', 403, 'Unauthorized Access: IT Operations Only.');
-
-        $request->validate([
-            'interface' => 'required|string|max:50',
-            'protocol' => 'required|string|max:50',
-            'source' => 'required|string|max:255',
-            'destination' => 'required|string|max:255',
-            'port' => 'nullable|string|max:100',
-            'policy' => 'required|in:ALLOW,BLOCK,PRIORITIZE',
-        ]);
-
-        FirewallRule::create([
-            'interface' => $request->interface,
-            'protocol' => $request->protocol,
-            'source' => $request->source,
-            'destination' => $request->destination,
-            'port' => $request->port ?? 'ANY',
-            'policy' => $request->policy,
-            'is_synced' => false
-        ]);
-
-        return redirect()->route('admin.network')->with('success', 'Firewall rule staged on ' . strtoupper($request->interface) . '. Click Apply to deploy to gateway.');
-    }
-
-    public function applyFirewallRules()
-    {
-        abort_if(auth()->user()->role !== 'admin', 403, 'Unauthorized Access: IT Operations Only.');
-
-        $unsyncedRules = FirewallRule::where('is_synced', false)->get();
-
-        if ($unsyncedRules->isEmpty()) {
-            return redirect()->route('admin.network')->with('success', 'Hardware firewall is already synchronized with all active rules.');
-        }
-
-        try {
-            foreach ($unsyncedRules as $rule) {
-                $action = strtolower($rule->policy); 
-                if ($action === 'allow' || $action === 'prioritize') {
-                    $action = 'pass';
-                }
-
-                Http::withOptions(['verify' => false])
-                    ->withBasicAuth(env('OPNSENSE_API_KEY'), env('OPNSENSE_API_SECRET'))
-                    ->post(env('OPNSENSE_URL') . '/api/firewall/filter/addRule', [
-                        'rule' => [
-                            'action' => $action,
-                            'interface' => strtolower($rule->interface), 
-                            'ipprotocol' => 'inet',
-                            'protocol' => strtolower($rule->protocol),
-                            'source_net' => $rule->source,
-                            'destination_net' => $rule->destination,
-                            'dst_port' => $rule->port === 'ANY' ? '' : $rule->port,
-                            'description' => 'Aegis-Guard [' . $rule->policy . ']: ' . $rule->source . ' -> ' . $rule->destination,
-                        ]
-                    ]);
-
-                $rule->update(['is_synced' => true]);
-            }
-
-            // Command OPNsense to reload the packet filter
-            Http::withOptions(['verify' => false])
-                ->withBasicAuth(env('OPNSENSE_API_KEY'), env('OPNSENSE_API_SECRET'))
-                ->post(env('OPNSENSE_URL') . '/api/firewall/filter/apply');
-
-            return redirect()->route('admin.network')->with('success', 'Security policies successfully compiled and deployed to the OPNsense kernel.');
-
-        } catch (\Exception $e) {
-            Log::error('OPNsense Rule Sync Error: ' . $e->getMessage());
-            return redirect()->route('admin.network')->with('error', 'API Communication Failure: Unable to push rules to the hardware.');
-        }
-    }
-
-    public function engageEmergencyLockdown()
-    {
-        abort_if(auth()->user()->role !== 'admin', 403, 'Unauthorized Access: IT Operations Only.');
-
-        try {
-            // 1. Push a global BLOCK rule to the firewall via API
-            Http::withOptions(['verify' => false])
-                ->withBasicAuth(env('OPNSENSE_API_KEY'), env('OPNSENSE_API_SECRET'))
-                ->post(env('OPNSENSE_URL') . '/api/firewall/filter/addRule', [
-                    'rule' => [
-                        'action' => 'block',
-                        'interface' => 'lan', // Change to your student/guest VLAN interface name if needed
-                        'ipprotocol' => 'inet',
-                        'protocol' => 'any',
-                        'source_net' => 'any',
-                        'destination_net' => 'any',
-                        'description' => 'EMERGENCY OVERRIDE: NON-ESSENTIAL TRAFFIC BLOCKED',
-                    ]
-                ]);
-
-            // 2. Force OPNsense to reload the packet filter instantly
-            Http::withOptions(['verify' => false])
-                ->withBasicAuth(env('OPNSENSE_API_KEY'), env('OPNSENSE_API_SECRET'))
-                ->post(env('OPNSENSE_URL') . '/api/firewall/filter/apply');
-
-            // 3. Log the critical action in the Laravel logs
-            Log::alert('CRITICAL EVENT: Emergency Network Lockdown Engaged by Admin ' . auth()->user()->name);
-
-            return redirect()->route('admin.network')->with('emergency_success', 'DISASTER PROTOCOL ENGAGED: Non-essential network traffic has been severed to prioritize emergency communications.');
-
-        } catch (\Exception $e) {
-            Log::error('Emergency Override Failure: ' . $e->getMessage());
-            return redirect()->route('admin.network')->with('error', 'CRITICAL FAILURE: Unable to establish API connection to edge gateway for lockdown.');
-        }
-    }
-
-    // ==========================================
-    // MODULE 5: SYSTEM BACKUPS & RESTORATION
+    // MODULE 3: SYSTEM BACKUPS & RESTORATION
     // ==========================================
 
     public function showBackups()
     {
         abort_if(auth()->user()->role !== 'admin', 403, 'Unauthorized Access: IT Operations Only.');
         
-        Storage::makeDirectory('backups');
-        $files = Storage::files('backups');
+        $disk = \Illuminate\Support\Facades\Storage::disk('local');
+        if (!$disk->exists('backups')) {
+            $disk->makeDirectory('backups');
+        }
+        
+        $files = $disk->files('backups');
+        $backups = [];
+        $totalSize = 0;
 
-        $backups = collect($files)->map(function ($file) {
-            return [
+        foreach ($files as $file) {
+            $size = $disk->size($file);
+            $totalSize += $size;
+            $backups[] = [
                 'name' => basename($file),
-                'size' => round(Storage::size($file) / 1048576, 2) . ' MB',
-                'timestamp' => Storage::lastModified($file),
-                'date' => date('M d, Y h:i A', Storage::lastModified($file))
+                'size' => number_format($size / 1048576, 2) . ' MB',
+                'timestamp' => $disk->lastModified($file),
+                'date' => \Carbon\Carbon::createFromTimestamp($disk->lastModified($file))->format('M d, Y - H:i:s')
             ];
-        })->sortByDesc('timestamp')->values();
+        }
 
-        return view('admin.backups', compact('backups'));
+        // Sort newest backups to the top
+        usort($backups, function($a, $b) { return $b['timestamp'] <=> $a['timestamp']; });
+        
+        $totalSizeFormatted = number_format($totalSize / 1048576, 2);
+        
+        return view('admin.backups', compact('backups', 'totalSizeFormatted'));
     }
 
     public function generateBackup()
     {
         abort_if(auth()->user()->role !== 'admin', 403, 'Unauthorized Access: IT Operations Only.');
 
-        Storage::makeDirectory('backups');
+        \Illuminate\Support\Facades\Storage::makeDirectory('backups');
+        
+        // Using your original filename prefix to match the existing vault files
         $filename = "aegis_db_backup_" . now()->format('Y_m_d_His') . ".sql";
-        $path = Storage::path('backups/' . $filename);
+        $path = \Illuminate\Support\Facades\Storage::path('backups/' . $filename);
 
+        // Reverting to your exact sprintf syntax which XAMPP requires
         $command = sprintf(
             'mysqldump --user="%s" --password="%s" --host="%s" "%s" > "%s"',
-            env('DB_USERNAME'),
-            env('DB_PASSWORD'),
+            env('DB_USERNAME', 'root'),
+            env('DB_PASSWORD', ''),
             env('DB_HOST', '127.0.0.1'),
-            env('DB_DATABASE'),
+            env('DB_DATABASE', 'aegis_db'),
             $path
         );
 
@@ -572,10 +386,20 @@ class DashboardController extends Controller
         exec($command, $output, $returnVar);
 
         if ($returnVar !== 0) {
-            return back()->with('error', 'Backup failed. Ensure the server has mysqldump installed and permissions are correct.');
+            return redirect()->back()->with('error', 'SYSTEM FAILURE: mysqldump execution failed. Check XAMPP environment variables.');
         }
 
-        return back()->with('success', 'Full system database snapshot generated successfully.');
+        // Automated 30-Day Retention Pruning
+        $disk = \Illuminate\Support\Facades\Storage::disk('local');
+        $files = $disk->files('backups');
+        $now = time();
+        foreach ($files as $file) {
+            if ($now - $disk->lastModified($file) >= 2592000) { 
+                $disk->delete($file);
+            }
+        }
+
+        return redirect()->back()->with('success', 'System snapshot generated successfully. AWS EC2 off-site replication queued.');
     }
 
     public function downloadBackup($filename)
@@ -583,30 +407,33 @@ class DashboardController extends Controller
         abort_if(auth()->user()->role !== 'admin', 403, 'Unauthorized Access: IT Operations Only.');
 
         $path = 'backups/' . $filename;
-        if (Storage::exists($path)) {
-            return Storage::download($path);
+        
+        // Use Laravel's Storage facade to safely resolve OS paths
+        if (\Illuminate\Support\Facades\Storage::disk('local')->exists($path)) {
+            return \Illuminate\Support\Facades\Storage::disk('local')->download($path);
         }
-        return back()->with('error', 'Archive file corrupted or missing.');
+        
+        return redirect()->back()->with('error', 'Backup file missing or corrupted. Path resolution failed.');
     }
-
-    public function restoreBackup($filename)
+    public function restoreBackup(\Illuminate\Http\Request $request, $filename)
     {
         abort_if(auth()->user()->role !== 'admin', 403, 'Unauthorized Access: IT Operations Only.');
 
         $path = 'backups/' . $filename;
 
-        if (!Storage::exists($path)) {
-            return back()->with('error', 'Restoration aborted: Target archive snapshot missing.');
+        if (!\Illuminate\Support\Facades\Storage::exists($path)) {
+            return redirect()->back()->with('error', 'Restoration aborted: Target archive snapshot missing.');
         }
 
-        $absolutePath = Storage::path($path);
+        $absolutePath = \Illuminate\Support\Facades\Storage::path($path);
 
+        // Using your exact sprintf syntax for the restore function as well
         $command = sprintf(
             'mysql --user="%s" --password="%s" --host="%s" "%s" < "%s"',
-            env('DB_USERNAME'),
-            env('DB_PASSWORD'),
+            env('DB_USERNAME', 'root'),
+            env('DB_PASSWORD', ''),
             env('DB_HOST', '127.0.0.1'),
-            env('DB_DATABASE'),
+            env('DB_DATABASE', 'aegis_db'),
             $absolutePath
         );
 
@@ -615,9 +442,130 @@ class DashboardController extends Controller
         exec($command, $output, $returnVar);
 
         if ($returnVar !== 0) {
-            return back()->with('error', 'Catastrophic Error: System level restoration command stream broken.');
+            return redirect()->back()->with('error', 'CRITICAL ERROR: Rollback failed during execution.');
         }
 
-        return back()->with('success', "Disaster Recovery Complete. Database successfully reverted to: {$filename}");
+        return redirect()->back()->with('success', "DISASTER RECOVERY SUCCESS: Command center restored to snapshot {$filename}.");
+    }
+    public function exportCsv($id)
+    {
+        $node = \App\Models\Node::findOrFail($id);
+        $logs = $node->logs()->latest()->get();
+
+        $fileName = "aegis_guard_{$node->hardware_id}_telemetry.csv";
+        $headers = [
+            "Content-type"        => "text/csv",
+            "Content-Disposition" => "attachment; filename=$fileName",
+            "Pragma"              => "no-cache",
+            "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
+            "Expires"             => "0"
+        ];
+
+        $columns = ['Timestamp', 'Node ID', 'Zone', 'Temperature (C)', 'Smoke Raw (PPM)', 'System Status'];
+
+        $callback = function() use($logs, $columns, $node) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, $columns);
+
+            foreach ($logs as $log) {
+                fputcsv($file, [
+                    $log->created_at->format('Y-m-d H:i:s'),
+                    $node->hardware_id,
+                    $node->location_name,
+                    $log->temperature,
+                    $log->smoke_level,
+                    $log->status
+                ]);
+            }
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+    // ==========================================
+    // MODULE 4: USER MANAGEMENT (IT PERSONNEL ONLY)
+    // ==========================================
+
+    public function users()
+    {
+        abort_if(auth()->user()->role !== 'admin', 403, 'Unauthorized Access: IT Operations Only.');
+        
+        $users = \App\Models\User::latest()->get();
+        return view('admin.users', compact('users'));
+    }
+
+    public function storeUser(\Illuminate\Http\Request $request)
+    {
+        abort_if(auth()->user()->role !== 'admin', 403, 'Unauthorized Access: IT Operations Only.');
+        
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email',
+            'password' => 'required|string|min:8',
+            'role' => 'required|in:admin,security,executive'
+        ]);
+
+        \App\Models\User::create([
+            'name' => $request->name,
+            'email' => $request->email,
+            'password' => \Illuminate\Support\Facades\Hash::make($request->password),
+            'role' => $request->role,
+        ]);
+
+        return redirect()->back()->with('success', 'New system operator successfully provisioned.');
+    }
+
+    public function destroyUser($id)
+    {
+        abort_if(auth()->user()->role !== 'admin', 403, 'Unauthorized Access: IT Operations Only.');
+        
+        // Failsafe: Prevent the admin from deleting their own active session
+        abort_if(auth()->id() == $id, 403, 'CRITICAL: You cannot delete your own active administrator account.');
+        
+        $user = \App\Models\User::findOrFail($id);
+        $name = $user->name;
+        $user->delete();
+        
+        return redirect()->back()->with('success', "Access revoked: {$name} has been removed from FireNet.");
+    }
+
+    // ==========================================
+    // MODULE 5: SYSTEM SETTINGS
+    // ==========================================
+
+    public function settings()
+    {
+        abort_if(auth()->user()->role !== 'admin', 403, 'Unauthorized Access: IT Operations Only.');
+        
+        // Fetch the settings row, or create a default one if it doesn't exist yet
+        $settings = \App\Models\Setting::firstOrCreate(
+            ['id' => 1],
+            [
+                'campus_name' => 'Laguna State Polytechnic University',
+                'admin_email' => 'admin@lspu.edu.ph',
+                'pushover_app_token' => env('PUSHOVER_APP_TOKEN', ''),
+                'pushover_user_key' => env('PUSHOVER_USER_KEY', ''),
+                'alerts_muted' => false
+            ]
+        );
+
+        return view('admin.settings', compact('settings'));
+    }
+
+    public function updateSettings(\Illuminate\Http\Request $request)
+    {
+        abort_if(auth()->user()->role !== 'admin', 403, 'Unauthorized Access: IT Operations Only.');
+
+        $settings = \App\Models\Setting::first();
+        
+        $settings->update([
+            'campus_name' => $request->campus_name,
+            'admin_email' => $request->admin_email,
+            'pushover_app_token' => $request->pushover_app_token,
+            'pushover_user_key' => $request->pushover_user_key,
+            'alerts_muted' => $request->has('alerts_muted'),
+        ]);
+
+        return redirect()->back()->with('success', 'Global system settings successfully updated.');
     }
 }

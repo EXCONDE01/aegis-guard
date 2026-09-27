@@ -10,6 +10,9 @@ class Threshold extends Model
         'temp_warning',
         'temp_critical',
         'smoke_warning',
-        'smoke_critical'
+        'smoke_critical',
+        'temp_offset',
+        'smoke_offset',
+        'updated_by_name'
     ];
 }

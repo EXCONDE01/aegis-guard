@@ -1,197 +1,112 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aegis-Guard | System Backups</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-</head>
-<body class="flex h-screen bg-slate-950 font-sans text-slate-300 overflow-hidden">
-    
-    <div class="w-64 bg-slate-900 border-r border-slate-800 flex flex-col z-50">
-        <div class="p-6">
-            <h2 class="text-xl font-bold text-white tracking-tight">Emergency Command Center</h2>
-            <p class="text-[10px] text-slate-500 uppercase font-semibold tracking-widest mt-1">Disaster Risk Reduction Portal</p>
-        </div>
-        <nav class="flex-1 px-4 space-y-1 text-sm font-medium overflow-y-auto">
-            <div class="mb-4">
-                <p class="px-3 text-[10px] font-bold tracking-widest text-slate-600 uppercase mb-2">Monitoring</p>
-                <a href="{{ route('dashboard') }}" class="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-800/50 rounded-lg text-slate-400 hover:text-slate-200 transition-colors">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
-                    Real-Time Map
-                </a>
-                <a href="{{ route('admin.history') }}" class="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-800/50 rounded-lg text-slate-400 hover:text-slate-200 transition-colors">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                    Hazard History
-                </a>
-                <a href="{{ route('admin.contacts') }}" class="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-800/50 rounded-lg text-slate-400 hover:text-slate-200 transition-colors">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
-                    Alert Contacts
-                </a>
-            </div>
+@extends('layouts.admin')
+@section('page_title', 'System Backups | Aegis-Guard')
+@section('header_title', 'Disaster Recovery Center')
+@section('header_subtitle', 'Manage automated MySQL snapshots, monitor local storage analytics, and configure remote replication.')
 
-            @if(auth()->check() && auth()->user()->role === 'admin')
+@section('header_actions')
+    <form method="POST" action="{{ route('admin.backups.generate') }}">
+        @csrf
+        <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white text-[13px] font-bold px-6 py-2.5 rounded shadow-sm transition-all flex items-center gap-2 uppercase tracking-wider">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
+            Generate Snapshot
+        </button>
+    </form>
+@endsection
+
+@section('content')
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+    <!-- Storage Analytics -->
+    <div class="bg-white border border-gray-200 rounded-xl shadow-sm p-6 relative overflow-hidden">
+        <div class="flex justify-between items-start mb-4">
             <div>
-                <p class="px-3 text-[10px] font-bold tracking-widest text-indigo-500 uppercase mb-2 mt-6">System Admin</p>
-                <a href="{{ route('admin.nodes') }}" class="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-800/50 rounded-lg text-slate-400 hover:text-slate-200 transition-colors">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" /></svg>
-                    Hardware Nodes
-                </a>
-                <a href="{{ route('admin.thresholds') }}" class="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-800/50 rounded-lg text-slate-400 hover:text-slate-200 transition-colors mt-1">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                    Threshold Config
-                </a>
-                <a href="{{ route('admin.network') }}" class="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-800/50 rounded-lg text-slate-400 hover:text-slate-200 transition-colors mt-1">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0V12a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 12V5.25" /></svg>
-                    Gateway & VLAN
-                </a>
-                <a href="{{ route('admin.backups.index') }}" class="flex items-center gap-3 px-3 py-2.5 bg-indigo-500/10 text-indigo-400 rounded-lg transition-colors mt-1">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 0v3.75m-16.5-3.75v3.75m16.5 0v3.75C20.25 16.153 16.556 18 12 18s-8.25-1.847-8.25-4.125v-3.75m16.5 0c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125" /></svg>
-                    System Backups
-                </a>
+                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Vault Capacity</p>
+                <h3 class="text-2xl font-bold text-gray-900 font-telemetry">{{ $totalSizeFormatted ?? '0.00' }} MB</h3>
             </div>
-            @endif
-        </nav>
-        
-        <div class="p-4 bg-slate-950/50 text-xs font-medium text-slate-400 border-t border-slate-800 flex items-center justify-between">
-            <div class="flex items-center gap-2 text-indigo-400">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>
-                System Administrator
+            <div class="w-10 h-10 rounded-full bg-sky-50 border border-sky-100 flex items-center justify-center text-sky-500">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" /></svg>
             </div>
-            <form method="POST" action="{{ route('logout') }}">
-                @csrf
-                <button type="submit" class="hover:text-white transition-colors">Logout</button>
-            </form>
+        </div>
+        <div class="w-full bg-gray-100 rounded-full h-1.5 mb-2">
+            <div class="bg-sky-500 h-1.5 rounded-full" style="width: 15%"></div>
+        </div>
+        <p class="text-[10px] text-gray-500 font-medium">Automated 30-day retention pruning is active.</p>
+    </div>
+
+    <!-- AWS Replication Status -->
+    <div class="bg-white border border-gray-200 rounded-xl shadow-sm p-6 lg:col-span-2">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 relative">
+                    <div class="absolute inset-0 rounded-full border border-emerald-200 animate-ping opacity-50"></div>
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" /></svg>
+                </div>
+                <div>
+                    <h3 class="text-sm font-bold text-gray-900">AWS EC2 Off-Site Replication</h3>
+                    <p class="text-[11px] text-gray-500 mt-0.5">Secure tunnel established via Nginx reverse proxy.</p>
+                </div>
+            </div>
+            <div class="text-right">
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-emerald-50 text-emerald-700 text-[9px] font-bold uppercase tracking-widest border border-emerald-100">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> SYNC SECURE
+                </span>
+                <p class="text-[10px] font-telemetry text-gray-400 mt-2">Target: us-east-1 instance</p>
+            </div>
         </div>
     </div>
+</div>
 
-    <div class="flex-1 overflow-y-auto">
-        <header class="bg-slate-950/80 backdrop-blur-sm border-b border-slate-800 p-8 sticky top-0 z-30">
-            <h1 class="text-2xl font-bold text-white">System Backups</h1>
-            <p class="text-sm text-slate-500 mt-1">Data Retention and Automated Disaster Recovery Engine</p>
-        </header>
-
-        <main class="p-8 pb-20 max-w-7xl mx-auto space-y-8">
-            
-            @if(session('success'))
-            <div class="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 p-4 rounded-xl flex items-center gap-3">
-                <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
-                <span class="text-sm font-medium">{{ session('success') }}</span>
-            </div>
-            @endif
-
-            @if(session('error'))
-            <div class="bg-amber-500/10 border border-amber-500/20 text-amber-500 p-4 rounded-xl flex items-center gap-3">
-                <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                <span class="text-sm font-medium">{{ session('error') }}</span>
-            </div>
-            @endif
-
-            <div class="bg-slate-900 p-6 rounded-2xl border border-slate-800 flex flex-col md:flex-row justify-between items-center gap-6 shadow-sm">
-                <div>
-                    <h2 class="text-lg font-bold text-white">Generate Database Dump</h2>
-                    <p class="text-sm text-slate-500 mt-1">Execute a system-level infrastructure blueprint capture (.sql configuration state).</p>
-                </div>
-                
-                <form action="{{ route('admin.backups.generate') }}" method="POST" class="w-full md:w-auto">
-                    @csrf
-                    <button type="submit" class="w-full px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm rounded-lg transition-colors flex items-center justify-center gap-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"></path></svg>
-                        Trigger Backup
-                    </button>
-                </form>
-            </div>
-
-            <div class="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-sm">
-                <div class="p-6 border-b border-slate-800 flex justify-between items-center">
-                    <h3 class="font-bold text-white text-base">Recent Archive Files</h3>
-                </div>
-                <div class="divide-y divide-slate-800">
-                    
-                @forelse($backups as $index => $backup)
-                    <div class="p-6 flex items-center justify-between hover:bg-slate-800/50 transition-colors group" x-data="{ openRestoreModal: false }">
-                        <div class="flex items-center gap-4">
-                            <div class="w-12 h-12 rounded-xl flex items-center justify-center {{ $index === 0 ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' : 'bg-slate-950 text-slate-500 border border-slate-800' }}">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                            </div>
-                            <div>
-                                <div class="text-sm font-bold text-white">{{ $backup['name'] }}</div>
-                                <div class="text-xs text-slate-500 font-mono mt-1">System generated • {{ $backup['size'] }} • {{ $backup['date'] }}</div>
-                            </div>
-                        </div>
-                        
-                        <div class="flex items-center gap-3">
-                            <button type="button" onclick="openModal('modal-{{ $index }}')" class="text-amber-400 hover:text-amber-300 bg-amber-500/10 font-semibold text-xs px-4 py-2 rounded-lg transition-colors">
-                                Restore
-                            </button>
-
-                            <a href="{{ route('admin.backups.download', $backup['name']) }}" class="{{ $index === 0 ? 'text-indigo-400 hover:text-indigo-300 bg-indigo-500/10' : 'text-slate-400 hover:text-white bg-slate-950 border border-slate-800' }} font-semibold text-xs px-4 py-2 rounded-lg transition-colors">
-                                Download
-                            </a>
-                        </div>
-
-                        <div id="modal-{{ $index }}" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 overflow-x-hidden overflow-y-auto">
-                            <div class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm" onclick="closeModal('modal-{{ $index }}')"></div>
-                            
-                            <div class="relative w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-6 z-10 transform transition-all">
-                                <div class="flex items-start gap-4">
-                                    <div class="w-10 h-10 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-500 flex items-center justify-center shrink-0">
-                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
-                                        </svg>
-                                    </div>
-                                    <div>
-                                        <h3 class="text-base font-bold text-white tracking-tight">CRITICAL INFRASTRUCTURE WARNING</h3>
-                                        <p class="text-xs text-slate-400 mt-2 leading-relaxed">
-                                            You are initializing an automated core state regression rollback. Current session logs and environmental analytics metrics will be permanently overwritten by the configuration snapshot.
-                                        </p>
-                                        <div class="mt-3 p-2 bg-slate-950 border border-slate-800 rounded-lg">
-                                            <span class="text-[10px] font-mono text-slate-500 block uppercase font-bold tracking-wider">Target Blueprint File</span>
-                                            <span class="text-xs font-mono text-amber-400 break-all">{{ $backup['name'] }}</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-800">
-                                    <button type="button" onclick="closeModal('modal-{{ $index }}')" class="px-4 py-2 bg-slate-950 hover:bg-slate-800 text-slate-400 hover:text-slate-200 font-semibold text-xs rounded-lg transition-colors border border-slate-800">
-                                        Cancel
-                                    </button>
-                                    
-                                    <form action="{{ route('admin.backups.restore', $backup['name']) }}" method="POST" class="inline m-0">
-                                        @csrf
-                                        <button type="submit" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-lg transition-colors shadow-lg shadow-amber-500/10">
-                                            Confirm Execution
-                                        </button>
-                                    </form>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    @empty
-                    <div class="p-12 text-center text-slate-500 text-sm">
-                        No system backups found. Click "Trigger Backup" to create an initial snapshot.
-                    </div>
-                    @endforelse
-
-                </div>
-            </div>
-        </main>
+<!-- Snapshot Vault Table -->
+<div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+    <div class="p-6 border-b border-gray-100 bg-gray-50/50">
+        <h2 class="text-sm font-bold text-gray-900 tracking-tight">Available Snapshots</h2>
     </div>
-    <script>
-      function toggleSidebar() { 
-          document.getElementById('sidebar').classList.toggle('-translate-x-full'); 
-          document.getElementById('mobile-overlay').classList.toggle('hidden'); 
-      }
-
-      function openModal(modalId) {
-          document.getElementById(modalId).classList.remove('hidden');
-          document.body.classList.add('overflow-hidden'); // Lock scroll under modal
-      }
-
-      function closeModal(modalId) {
-          document.getElementById(modalId).classList.add('hidden');
-          document.body.classList.remove('overflow-hidden'); // Unlock scroll
-      }
-  </script>
-</body>
-</html>
+    
+    @if(count($backups) > 0)
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-gray-50 text-[10px] uppercase tracking-widest text-gray-500 font-bold border-b border-gray-200">
+                        <th class="p-4 pl-6">Snapshot Identity</th>
+                        <th class="p-4">Timestamp</th>
+                        <th class="p-4">File Size</th>
+                        <th class="p-4 pr-6 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 text-sm">
+                    @foreach($backups as $backup)
+                    <tr class="hover:bg-gray-50/50 transition-colors group">
+                        <td class="p-4 pl-6 font-telemetry font-bold text-gray-800 flex items-center gap-2">
+                            <svg class="w-4 h-4 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                            {{ $backup['name'] }}
+                        </td>
+                        <td class="p-4 text-gray-600 font-telemetry text-xs">{{ $backup['date'] }}</td>
+                        <td class="p-4 text-gray-600 font-telemetry text-xs">{{ $backup['size'] }}</td>
+                        <td class="p-4 pr-6">
+                            <div class="flex items-center justify-end gap-2">
+                                <a href="{{ route('admin.backups.download', $backup['name']) }}" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-[10px] font-bold uppercase tracking-widest rounded transition-colors">
+                                    Download
+                                </a>
+                                <form method="POST" action="{{ route('admin.backups.restore', $backup['name']) }}" onsubmit="return confirm('DANGER: This will overwrite the live database with this snapshot. Proceed?');">
+                                    @csrf
+                                    <button type="submit" class="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-[10px] font-bold uppercase tracking-widest rounded transition-colors">
+                                        Rollback
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    @else
+        <div class="p-16 flex flex-col items-center justify-center text-center">
+            <div class="w-16 h-16 bg-gray-50 border border-gray-100 rounded-full flex items-center justify-center mb-4">
+                <svg class="w-8 h-8 text-sky-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+            </div>
+            <h3 class="text-base font-bold text-gray-900">Vault Empty</h3>
+            <p class="text-sm text-gray-500 mt-1 max-w-md">No system snapshots have been generated yet. Create one now to establish a baseline.</p>
+        </div>
+    @endif
+</div>
+@endsection

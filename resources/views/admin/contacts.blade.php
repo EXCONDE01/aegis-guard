@@ -1,157 +1,169 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aegis-Guard | Alert Contacts</title>
-    <@vite(['resources/css/app.css', 'resources/js/app.js'])
-</head>
-<body class="flex h-screen bg-slate-950 font-sans text-slate-300 overflow-hidden">
-    
-<div class="w-64 bg-slate-900 border-r border-slate-800 flex flex-col z-50 shrink-0">
-        <div class="p-6">
-            <h2 class="text-xl font-bold text-white tracking-tight">Emergency Command Center</h2>
-            <p class="text-[10px] text-slate-500 uppercase font-semibold tracking-widest mt-1">Disaster Risk Reduction Portal</p>
-        </div>
-        <nav class="flex-1 px-4 space-y-1 text-sm font-medium overflow-y-auto">
-            <div class="mb-4">
-                <p class="px-3 text-[10px] font-bold tracking-widest text-slate-600 uppercase mb-2">Monitoring</p>
-                
-                <a href="{{ route('dashboard') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors {{ request()->routeIs('dashboard') ? 'bg-indigo-500/10 text-indigo-400' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50' }}">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
-                    Real-Time Map
-                </a>
-                
-                <a href="{{ route('admin.history') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors {{ request()->routeIs('admin.history') ? 'bg-indigo-500/10 text-indigo-400' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50' }}">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                    Hazard History
-                </a>
-                
-                <a href="{{ route('admin.contacts') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors {{ request()->routeIs('admin.contacts') ? 'bg-indigo-500/10 text-indigo-400' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50' }}">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
-                    Alert Contacts
-                </a>
-            </div>
+@extends('layouts.admin')
+@section('page_title', 'Alert Directory | Aegis-Guard')
+@section('header_title', 'Emergency Contacts')
+@section('header_subtitle', 'Manage emergency responders, configure escalation tiers, and test API communication links.')
 
-            @if(auth()->check() && auth()->user()->role === 'admin')
-            <div>
-                <p class="px-3 text-[10px] font-bold tracking-widest text-indigo-500 uppercase mb-2 mt-6">System Admin</p>
-                
-                <a href="{{ route('admin.nodes') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors mt-1 {{ request()->routeIs('admin.nodes') ? 'bg-indigo-500/10 text-indigo-400' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50' }}">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" /></svg>
-                    Hardware Nodes
-                </a>
-                
-                <a href="{{ route('admin.thresholds') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors mt-1 {{ request()->routeIs('admin.thresholds') ? 'bg-indigo-500/10 text-indigo-400' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50' }}">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                    Threshold Config
-                </a>
-                
-                <a href="{{ route('admin.network') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors mt-1 {{ request()->routeIs('admin.network') ? 'bg-indigo-500/10 text-indigo-400' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50' }}">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0V12a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 12V5.25" /></svg>
-                    Gateway & VLAN
-                </a>
-                
-                <a href="{{ route('admin.backups.index') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors mt-1 {{ request()->routeIs('admin.backups.*') ? 'bg-indigo-500/10 text-indigo-400' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50' }}">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694-4.125-8.25-4.125S3.75 8.653 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 0v3.75m-16.5-3.75v3.75m16.5 0v3.75C20.25 16.153 16.556 18 12 18s-8.25-1.847-8.25-4.125v-3.75m16.5 0c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125" /></svg>
-                    System Backups
-                </a>
-            </div>
-            @endif
-        </nav>
-        
-        <div class="p-4 bg-slate-950/50 text-xs font-medium text-slate-400 border-t border-slate-800 flex items-center justify-between">
-            <div class="flex items-center gap-2 text-indigo-400">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>
-                System Administrator
-            </div>
-            <form method="POST" action="{{ route('logout') }}">
-                @csrf
-                <button type="submit" class="hover:text-white transition-colors">Logout</button>
-            </form>
-        </div>
-    </div>
+@section('header_actions')
+    <!-- This button triggers the Alpine.js modal at the bottom of the file -->
+    <button @click="$dispatch('open-add-contact-modal')" class="bg-sky-600 hover:bg-sky-700 text-white text-[13px] font-bold px-6 py-2.5 rounded shadow-sm transition-all flex items-center gap-2 uppercase tracking-wider">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+        Add Responder
+    </button>
+@endsection
 
-    <div class="flex-1 flex flex-col h-full overflow-y-auto">
-        <header class="bg-slate-950/80 backdrop-blur-sm border-b border-slate-800 p-8 sticky top-0 z-30">
-            <h1 class="text-2xl font-bold text-white">Alert Contacts</h1>
-            <p class="text-sm text-slate-500 mt-1">Manage personnel authorized to receive automated SMS alerts.</p>
-        </header>
+@section('content')
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    @forelse($contacts as $contact)
+        @php
+            $isActive = $contact->is_active ?? true;
+            $role = $contact->role ?? 'Responder';
+            
+            $cardBorder = $isActive ? 'border-gray-200 hover:border-sky-300' : 'border-gray-200 bg-gray-50 opacity-75';
+            $topAccent = $isActive ? 'bg-sky-500' : 'bg-gray-400';
+            $roleBadge = $role === 'System Admin' ? 'bg-violet-100 text-violet-700 border-violet-200' : 'bg-sky-100 text-sky-700 border-sky-200';
+            
+            // Extract initials for the avatar circle (e.g., "John Doe" becomes "JD")
+            $initials = collect(explode(' ', $contact->name))->map(function($segment) { return strtoupper(substr($segment, 0, 1)); })->take(2)->join('');
+        @endphp
 
-        <main class="p-8 space-y-8 pb-20 max-w-7xl mx-auto w-full">
-            @if(session('success'))
-            <div class="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 p-4 rounded-xl flex items-center gap-3">
-                <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
-                <span class="text-sm font-medium">{{ session('success') }}</span>
-            </div>
-            @endif
+        <div class="bg-white border {{ $cardBorder }} rounded-xl shadow-sm relative overflow-hidden transition-all duration-300 group">
+            <!-- Top Color Bar -->
+            <div class="h-1.5 w-full {{ $topAccent }}"></div>
+            
+            <div class="p-6">
+                <!-- Header: Avatar & Status -->
+                <div class="flex justify-between items-start mb-4">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-full {{ $isActive ? 'bg-sky-50 text-sky-600 border-sky-100' : 'bg-gray-100 text-gray-500 border-gray-200' }} border flex items-center justify-center font-black text-lg shadow-sm">
+                            {{ $initials }}
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-gray-900 text-lg leading-tight">{{ $contact->name }}</h3>
+                            <span class="inline-block px-2 py-0.5 mt-1 rounded text-[9px] font-bold uppercase tracking-widest border {{ $roleBadge }}">
+                                {{ $role }}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <!-- Duty Status Indicator -->
+                    <span class="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest {{ $isActive ? 'text-emerald-600' : 'text-gray-400' }}">
+                        <span class="w-1.5 h-1.5 rounded-full {{ $isActive ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400' }}"></span>
+                        {{ $isActive ? 'On-Duty' : 'On-Leave' }}
+                    </span>
+                </div>
 
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div class="bg-slate-900 p-6 rounded-2xl border border-slate-800 lg:col-span-1 h-fit shadow-sm">
-                    <h3 class="font-bold text-white text-base mb-5">Register Personnel</h3>
-                    <form action="{{ route('admin.contacts.store') }}" method="POST" class="space-y-4">
+                <!-- Contact Details -->
+                <div class="space-y-3 bg-gray-50/50 rounded-lg p-4 border border-gray-100 mb-6">
+                    <div>
+                        <p class="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1 flex items-center gap-1">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg> Phone Number
+                        </p>
+                        <p class="font-telemetry text-sm text-gray-800 font-bold">{{ $contact->phone ?? 'N/A' }}</p>
+                    </div>
+                    <div>
+                        <p class="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1 flex items-center gap-1">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg> Pushover API Key
+                        </p>
+                        <p class="font-telemetry text-xs text-sky-600 font-bold truncate" title="{{ $contact->pushover_key ?? $contact->user_key ?? 'N/A' }}">
+                            {{ $contact->pushover_key ?? $contact->user_key ?? 'N/A' }}
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex items-center gap-2">
+                    <!-- Toggle Duty Status -->
+                    <form method="POST" action="{{ route('admin.contacts.toggle', $contact->id) }}" class="flex-1">
+                        @csrf @method('PATCH')
+                        <button type="submit" class="w-full py-2 px-3 rounded bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-[10px] font-bold uppercase tracking-widest transition-colors shadow-sm">
+                            {{ $isActive ? 'Set Off-Duty' : 'Set Active' }}
+                        </button>
+                    </form>
+                    
+                    <!-- Dispatch Test Ping -->
+                    <form method="POST" action="{{ route('admin.contacts.test', $contact->id) }}" class="flex-1">
                         @csrf
-                        <div>
-                            <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">Full Name</label>
-                            <input type="text" name="name" required class="w-full bg-slate-950 border border-slate-700 text-white text-sm rounded-lg focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 block p-3 transition-colors" placeholder="e.g. John Doe">
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">Role / Designation</label>
-                            <input type="text" name="role" required class="w-full bg-slate-950 border border-slate-700 text-white text-sm rounded-lg focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 block p-3 transition-colors" placeholder="e.g. Lab Technician">
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">Mobile Number</label>
-                            <input type="text" name="phone" required class="w-full bg-slate-950 border border-slate-700 text-white text-sm rounded-lg focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 block p-3 transition-colors" placeholder="+639...">
-                        </div>
-                        <button type="submit" class="w-full text-white bg-indigo-600 hover:bg-indigo-500 font-semibold text-sm rounded-lg px-5 py-3 text-center transition-colors mt-2">
-                            Save Contact
+                        <button type="submit" class="w-full py-2 px-3 rounded bg-sky-50 border border-sky-200 hover:bg-sky-100 text-sky-700 text-[10px] font-bold uppercase tracking-widest transition-colors shadow-sm flex justify-center items-center gap-1.5">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> Test Ping
+                        </button>
+                    </form>
+                    
+                    <!-- Delete Button -->
+                    <form method="POST" action="{{ route('admin.contacts.destroy', $contact->id) }}" onsubmit="return confirm('Permanently remove this responder from the system?');">
+                        @csrf @method('DELETE')
+                        <button type="submit" class="p-2 rounded bg-white border border-gray-200 hover:bg-red-50 hover:border-red-200 hover:text-red-600 text-gray-400 transition-colors shadow-sm" title="Remove Contact">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                         </button>
                     </form>
                 </div>
-
-                <div class="bg-slate-900 rounded-2xl border border-slate-800 lg:col-span-2 overflow-hidden shadow-sm h-fit">
-                    <div class="p-5 border-b border-slate-800">
-                        <h3 class="font-bold text-white text-base">Active Directory</h3>
-                    </div>
-                    <table class="w-full text-left text-sm text-slate-400">
-                        <thead class="bg-slate-950/50 text-xs font-semibold text-slate-500 border-b border-slate-800">
-                            <tr>
-                                <th class="px-6 py-4">Personnel</th>
-                                <th class="px-6 py-4">Contact Info</th>
-                                <th class="px-6 py-4 text-right">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-800">
-                            @foreach($contacts as $contact)
-                            <tr class="hover:bg-slate-800/50 transition-colors">
-                                <td class="px-6 py-4">
-                                    <p class="font-medium text-slate-200">{{ $contact->name }}</p>
-                                    <p class="text-xs text-slate-500 mt-0.5">{{ $contact->role }}</p>
-                                </td>
-                                <td class="px-6 py-4 font-mono text-xs text-slate-300">
-                                    {{ $contact->phone }}
-                                </td>
-                                <td class="px-6 py-4 text-right">
-                                    <form action="{{ route('admin.contacts.destroy', $contact->id) }}" method="POST" onsubmit="return confirm('Remove this contact from the broadcast list?');">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="text-red-400 hover:text-red-300 font-medium text-sm transition-colors">
-                                            Remove
-                                        </button>
-                                    </form>
-                                </td>
-                            </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                    @if($contacts->isEmpty())
-                    <div class="p-12 text-center text-slate-500 text-sm">
-                        No personnel registered in the directory.
-                    </div>
-                    @endif
-                </div>
             </div>
-        </main>
+        </div>
+    @empty
+        <!-- Empty State -->
+        <div class="col-span-full p-16 flex flex-col items-center justify-center text-center bg-white border border-gray-200 rounded-xl shadow-sm">
+            <div class="w-16 h-16 bg-gray-50 border border-gray-100 rounded-full flex items-center justify-center mb-4">
+                <svg class="w-8 h-8 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+            </div>
+            <h3 class="text-base font-bold text-gray-900">No Responders Configured</h3>
+            <p class="text-sm text-gray-500 mt-1 max-w-md">Add emergency contacts and their Pushover API keys to enable automated SMS dispatch.</p>
+        </div>
+    @endforelse
+</div>
+@endsection
+
+@section('modals')
+<!-- Add Responder Modal -->
+<div x-data="{ showAddModal: false }" @open-add-contact-modal.window="showAddModal = true">
+    <div x-show="showAddModal" style="display: none;" class="fixed inset-0 z-[9999] flex items-center justify-center" x-transition.opacity>
+        <!-- Background Blur -->
+        <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" @click="showAddModal = false"></div>
+        
+        <!-- Modal Content -->
+        <div class="bg-white border border-gray-200 rounded-xl shadow-2xl p-8 max-w-md w-full relative z-10" 
+             x-show="showAddModal" 
+             x-transition:enter="ease-out duration-300" 
+             x-transition:enter-start="opacity-0 scale-95 translate-y-4" 
+             x-transition:enter-end="opacity-100 scale-100 translate-y-0">
+            
+            <h3 class="text-xl font-bold text-gray-900 mb-1">Register Responder</h3>
+            <p class="text-xs text-gray-500 mb-6">Provision a new emergency contact for the automated SMS broadcast list.</p>
+            
+            <!-- Target the store route you have defined in web.php -->
+            <form method="POST" action="{{ route('admin.contacts.store') }}" class="space-y-4">
+                @csrf
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Full Name</label>
+                    <input type="text" name="name" required placeholder="e.g., John Doe" 
+                           class="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-sky-500 focus:border-sky-500 p-2.5">
+                </div>
+                
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Role / Escalation Tier</label>
+                    <select name="role" required class="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-sky-500 focus:border-sky-500 p-2.5">
+                        <option value="Primary Responder">Primary Responder (Security)</option>
+                        <option value="System Admin">System Admin (IT)</option>
+                        <option value="Facility Manager">Facility Manager</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Phone Number</label>
+                    <input type="text" name="phone" placeholder="+63 912 345 6789" 
+                           class="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-sky-500 focus:border-sky-500 p-2.5 font-telemetry">
+                </div>
+                
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Pushover User Key</label>
+                    <input type="text" name="pushover_key" required placeholder="Paste 30-character key here..." 
+                           class="w-full bg-white border border-sky-300 text-gray-900 text-sm rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 p-2.5 font-telemetry font-bold shadow-sm">
+                </div>
+                
+                <div class="flex justify-end gap-3 mt-8 border-t border-gray-100 pt-5">
+                    <button type="button" @click="showAddModal = false" class="px-5 py-2.5 text-sm font-medium text-gray-500 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 rounded transition-colors">Cancel</button>
+                    <button type="submit" class="bg-sky-600 text-white px-6 py-2.5 rounded-lg text-sm font-bold tracking-wider transition-all shadow-sm hover:bg-sky-700 uppercase">Save Profile</button>
+                </div>
+            </form>
+        </div>
     </div>
-</body>
-</html>
+</div>
+@endsection

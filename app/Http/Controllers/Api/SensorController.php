@@ -64,20 +64,24 @@ class SensorController extends Controller {
             // Send only if no alert was dispatched in the last 2 minutes
             if (!Cache::has($cacheKey)) {
                 try {
-                    $response = Http::post('https://api.pushover.net/1/messages.json', [
+                    // MUST use asForm() and force IPv4 to prevent 400 Bad Request
+                    $response = Http::asForm()->withOptions([
+                        \CURLOPT_IPRESOLVE => \CURL_IPRESOLVE_V4
+                    ])->post('https://api.pushover.net/1/messages.json', [
                         'token'    => env('PUSHOVER_APP_TOKEN'),
-                        'user'     => env('PUSHOVER_USER_KEY'),
+                        'user'     => env('PUSHOVER_USER_KEY'), // Ensure this is a Group Key
                         'title'    => 'EMERGENCY: FIRE / HAZARD ALERT',
                         'message'  => "CRITICAL BREACH at {$node->location_name} ({$node->specific_area})! Temp: {$request->temp}°C | Smoke: {$request->smoke} PPM",
                         'priority' => 2,                // Bypasses silent/DND modes
-                        'retry'    => 10,               // Resounds every 30 seconds...
+                        'retry'    => 30,               // MUST be 30 or higher (Pushover API rule)
                         'expire'   => 3600,             // ...for up to 1 hour until acknowledged
-                        'sound'    => 'UDRRMC_SIREN',          // Replace with your custom uploaded sound name if set
+                        'sound'    => 'UDRRMC_SIREN',          // Reverted to lowercase standard siren to guarantee delivery
                     ]);
 
                     if ($response->successful()) {
                         // Set a 2-minute cooldown before sending another push for this node
                         Cache::put($cacheKey, true, now()->addMinutes(2));
+                        Log::info("Automated alarm dispatched for Node {$node->hardware_id}");
                     } else {
                         Log::error('Pushover Dispatch Failed: ' . $response->body());
                     }

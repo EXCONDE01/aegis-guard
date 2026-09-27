@@ -1,165 +1,175 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aegis-Guard | Threshold Config</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-</head>
-<body class="flex h-screen bg-slate-950 font-sans text-slate-300 overflow-hidden">
-    
-<div class="w-64 bg-slate-900 border-r border-slate-800 flex flex-col z-50 shrink-0">
-        <div class="p-6">
-            <h2 class="text-xl font-bold text-white tracking-tight">Emergency Command Center</h2>
-            <p class="text-[10px] text-slate-500 uppercase font-semibold tracking-widest mt-1">Disaster Risk Reduction Portal</p>
-        </div>
-        <nav class="flex-1 px-4 space-y-1 text-sm font-medium overflow-y-auto">
-            <div class="mb-4">
-                <p class="px-3 text-[10px] font-bold tracking-widest text-slate-600 uppercase mb-2">Monitoring</p>
-                
-                <a href="{{ route('dashboard') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors {{ request()->routeIs('dashboard') ? 'bg-indigo-500/10 text-indigo-400' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50' }}">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
-                    Real-Time Map
-                </a>
-                
-                <a href="{{ route('admin.history') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors {{ request()->routeIs('admin.history') ? 'bg-indigo-500/10 text-indigo-400' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50' }}">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                    Hazard History
-                </a>
-                
-                <a href="{{ route('admin.contacts') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors {{ request()->routeIs('admin.contacts') ? 'bg-indigo-500/10 text-indigo-400' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50' }}">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
-                    Alert Contacts
-                </a>
-            </div>
+@extends('layouts.admin')
+@section('page_title', 'Thresholds | Aegis-Guard')
+@section('header_title', 'Global Hazard Thresholds')
+@section('header_subtitle', 'Define the baseline environmental parameters, configure hardware calibration offsets, and monitor compliance.')
 
-            @if(auth()->check() && auth()->user()->role === 'admin')
-            <div>
-                <p class="px-3 text-[10px] font-bold tracking-widest text-indigo-500 uppercase mb-2 mt-6">System Admin</p>
-                
-                <a href="{{ route('admin.nodes') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors mt-1 {{ request()->routeIs('admin.nodes') ? 'bg-indigo-500/10 text-indigo-400' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50' }}">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" /></svg>
-                    Hardware Nodes
-                </a>
-                
-                <a href="{{ route('admin.thresholds') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors mt-1 {{ request()->routeIs('admin.thresholds') ? 'bg-indigo-500/10 text-indigo-400' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50' }}">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                    Threshold Config
-                </a>
-                
-                <a href="{{ route('admin.network') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors mt-1 {{ request()->routeIs('admin.network') ? 'bg-indigo-500/10 text-indigo-400' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50' }}">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0V12a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 12V5.25" /></svg>
-                    Gateway & VLAN
-                </a>
-                
-                <a href="{{ route('admin.backups.index') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors mt-1 {{ request()->routeIs('admin.backups.*') ? 'bg-indigo-500/10 text-indigo-400' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50' }}">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694-4.125-8.25-4.125S3.75 8.653 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 0v3.75m-16.5-3.75v3.75m16.5 0v3.75C20.25 16.153 16.556 18 12 18s-8.25-1.847-8.25-4.125v-3.75m16.5 0c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125" /></svg>
-                    System Backups
-                </a>
-            </div>
-            @endif
-        </nav>
+@section('content')
+<!-- ALPINE.JS STATE MANAGEMENT FOR INTERACTIVE SLIDERS -->
+<div x-data="{ 
+    tempWarn: {{ $threshold->temp_warning ?? 35 }}, 
+    tempCrit: {{ $threshold->temp_critical ?? 45 }},
+    smokeWarn: {{ $threshold->smoke_warning ?? 500 }},
+    smokeCrit: {{ $threshold->smoke_critical ?? 1000 }}
+}">
+    <!-- REMOVED max-w-5xl FROM HERE -->
+    <form method="POST" action="{{ route('admin.thresholds.update') }}" class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden w-full">
+        @csrf @method('PUT')
         
-        <div class="p-4 bg-slate-950/50 text-xs font-medium text-slate-400 border-t border-slate-800 flex items-center justify-between">
-            <div class="flex items-center gap-2 text-indigo-400">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>
-                System Administrator
+        <div class="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+            <div>
+                <h2 class="text-lg font-bold text-gray-900 tracking-tight">Threshold Configuration</h2>
+                <p class="text-xs text-gray-500 mt-1 font-medium">Modifying these values will dynamically re-evaluate all active nodes instantly.</p>
             </div>
-            <form method="POST" action="{{ route('logout') }}">
-                @csrf
-                <button type="submit" class="hover:text-white transition-colors">Logout</button>
-            </form>
+            <button type="submit" class="hidden md:flex bg-sky-600 hover:bg-sky-700 text-white px-5 py-2 rounded-lg text-xs font-bold tracking-wide transition-all shadow-sm uppercase items-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                Apply Globally
+            </button>
         </div>
-    </div>
 
-    <div class="flex-1 overflow-y-auto">
-        <header class="bg-slate-950/80 backdrop-blur-sm border-b border-slate-800 p-8 sticky top-0 z-30">
-            <h1 class="text-2xl font-bold text-white">Threshold Configuration</h1>
-            <p class="text-sm text-slate-500 mt-1">Define global facility boundaries for environmental anomalies.</p>
-        </header>
-
-        <main class="p-8 pb-20 max-w-4xl mx-auto w-full">
-            @if(session('success'))
-            <div class="mb-6 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 p-4 rounded-xl flex items-center gap-3">
-                <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
-                <span class="text-sm font-medium">{{ session('success') }}</span>
-            </div>
-            @endif
-
-            @if($errors->any())
-            <div class="mb-6 bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-xl">
-                <ul class="text-sm list-disc pl-5">
-                    @foreach ($errors->all() as $error)
-                        <li>{{ $error }}</li>
-                    @endforeach
-                </ul>
-            </div>
-            @endif
-
-            <form action="{{ route('admin.thresholds.update') }}" method="POST" class="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-sm">
-                @csrf
-                @method('PUT')
+        <div class="p-8 grid grid-cols-1 lg:grid-cols-2 gap-10">
+            <!-- TEMPERATURE CONFIGURATION -->
+            <div class="space-y-6">
+                <div class="flex items-center justify-between mb-2 border-b border-gray-100 pb-3">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full bg-sky-50 border border-sky-100 flex items-center justify-center">
+                            <svg class="w-4 h-4 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+                        </div>
+                        <h3 class="text-sm font-bold text-gray-800">Temperature Limits (°C)</h3>
+                    </div>
+                    <!-- Hardware Calibration Offset -->
+                    <div class="flex items-center gap-2">
+                        <label class="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Calibration Offset</label>
+                        <input type="number" step="0.1" name="temp_offset" value="{{ $threshold->temp_offset ?? 0 }}" class="w-16 bg-gray-50 border border-gray-200 text-gray-900 text-xs rounded p-1 text-center font-telemetry">
+                    </div>
+                </div>
                 
-                <div class="p-8 space-y-8">
-                    <div>
-                        <div class="flex items-center gap-3 mb-6">
-                            <div class="p-2 bg-indigo-500/10 rounded-lg">
-                                <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
-                            </div>
-                            <div>
-                                <h3 class="font-bold text-white text-lg">Temperature Logic</h3>
-                                <p class="text-sm text-slate-500">Triggers for facility heat anomalies.</p>
-                            </div>
-                        </div>
+                <!-- Temp Warning Slider -->
+                <div class="bg-amber-50/50 border border-amber-100 rounded-lg p-5">
+                    <div class="flex justify-between items-center mb-4">
+                        <label class="text-[10px] font-bold text-amber-600 uppercase tracking-widest flex items-center gap-1.5">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg> Warning Level
+                        </label>
+                        <span class="text-xl font-telemetry font-bold text-gray-900" x-text="tempWarn + '°C'"></span>
+                    </div>
+                    <input type="range" x-model="tempWarn" name="temp_warning" min="20" max="80" step="0.1" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-amber-500">
+                </div>
+                
+                <!-- Temp Critical Slider -->
+                <div class="bg-red-50/50 border border-red-100 rounded-lg p-5">
+                    <div class="flex justify-between items-center mb-4">
+                        <label class="text-[10px] font-bold text-red-600 uppercase tracking-widest flex items-center gap-1.5">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg> Evacuation Level
+                        </label>
+                        <span class="text-xl font-telemetry font-bold text-red-600" x-text="tempCrit + '°C'"></span>
+                    </div>
+                    <input type="range" x-model="tempCrit" name="temp_critical" min="30" max="100" step="0.1" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-red-600">
+                </div>
+            </div>
 
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div class="bg-slate-950 p-5 rounded-xl border border-slate-800">
-                                <label class="block text-xs font-bold uppercase tracking-wider text-amber-500 mb-2">Warning Level (°C)</label>
-                                <input type="number" step="0.1" name="temp_warning" value="{{ $threshold->temp_warning }}" required class="w-full bg-slate-900 border border-slate-700 text-white text-base rounded-lg focus:ring-1 focus:ring-amber-500 focus:border-amber-500 block p-3 font-mono transition-colors">
-                                <p class="text-[10px] text-slate-500 mt-2">Triggers amber investigation state.</p>
+            <!-- SMOKE CONFIGURATION -->
+            <div class="space-y-6">
+                <div class="flex items-center justify-between mb-2 border-b border-gray-100 pb-3">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full bg-violet-50 border border-violet-100 flex items-center justify-center">
+                            <svg class="w-4 h-4 text-violet-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        </div>
+                        <h3 class="text-sm font-bold text-gray-800">Particulate Density (PPM)</h3>
+                    </div>
+                    <!-- Hardware Calibration Offset -->
+                    <div class="flex items-center gap-2">
+                        <label class="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Calibration Offset</label>
+                        <input type="number" step="1" name="smoke_offset" value="{{ $threshold->smoke_offset ?? 0 }}" class="w-16 bg-gray-50 border border-gray-200 text-gray-900 text-xs rounded p-1 text-center font-telemetry">
+                    </div>
+                </div>
+                
+                <!-- Smoke Warning Slider -->
+                <div class="bg-amber-50/50 border border-amber-100 rounded-lg p-5">
+                    <div class="flex justify-between items-center mb-4">
+                        <label class="text-[10px] font-bold text-amber-600 uppercase tracking-widest flex items-center gap-1.5">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg> Warning Level
+                        </label>
+                        <span class="text-xl font-telemetry font-bold text-gray-900" x-text="smokeWarn"></span>
+                    </div>
+                    <input type="range" x-model="smokeWarn" name="smoke_warning" min="100" max="3000" step="10" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-amber-500">
+                </div>
+                
+                <!-- Smoke Critical Slider -->
+                <div class="bg-red-50/50 border border-red-100 rounded-lg p-5">
+                    <div class="flex justify-between items-center mb-4">
+                        <label class="text-[10px] font-bold text-red-600 uppercase tracking-widest flex items-center gap-1.5">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg> Evacuation Level
+                        </label>
+                        <span class="text-xl font-telemetry font-bold text-red-600" x-text="smokeCrit"></span>
+                    </div>
+                    <input type="range" x-model="smokeCrit" name="smoke_critical" min="200" max="4095" step="10" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-red-600">
+                </div>
+            </div>
+        </div>
+        
+        <!-- COMPLIANCE AUDIT TRAIL FOOTER -->
+        <div class="p-6 border-t border-gray-100 bg-gray-50 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
+                    <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                </div>
+                <div>
+                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Compliance Audit Trail</p>
+                    <p class="text-xs text-gray-600 font-medium mt-0.5">
+                        Last modified by <strong class="text-gray-900">{{ $threshold->updated_by_name ?? 'System' }}</strong> 
+                        on <span class="font-telemetry text-[11px]">{{ $threshold->updated_at ? $threshold->updated_at->format('M d, Y H:i:s') : 'Never' }}</span>
+                    </p>
+                </div>
+            </div>
+            
+            <button type="submit" class="w-full md:w-auto bg-sky-600 hover:bg-sky-700 text-white px-6 py-3 rounded-lg text-xs font-bold tracking-wide transition-all shadow-sm uppercase flex items-center justify-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                Apply Globally
+            </button>
+        </div>
+    </form>
+    
+    <!-- ADVANCED: ZONAL OVERRIDES PREVIEW -->
+    <div class="mt-8 bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden w-full">
+        <div class="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+            <div>
+                <h2 class="text-sm font-bold text-gray-900 tracking-tight flex items-center gap-2">
+                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+                    Zonal Overrides
+                </h2>
+                <p class="text-[11px] text-gray-500 mt-1 font-medium">Nodes configured to bypass these global defaults. (Manage these inside the <a href="{{ route('admin.nodes') }}" class="text-sky-600 hover:underline">Sensor Nodes</a> module).</p>
+            </div>
+        </div>
+        
+        @if(isset($overrideNodes) && $overrideNodes->count() > 0)
+            <div class="divide-y divide-gray-100">
+                @foreach($overrideNodes as $node)
+                    <div class="p-5 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                        <div>
+                            <h3 class="text-sm font-bold text-gray-900">{{ $node->location_name }} <span class="text-gray-400 mx-1">/</span> {{ $node->specific_area }}</h3>
+                            <p class="text-[10px] text-gray-500 font-telemetry mt-1">MAC/ID: {{ $node->hardware_id }}</p>
+                        </div>
+                        <div class="flex gap-6 bg-white border border-gray-100 rounded p-2.5 shadow-sm">
+                            <div class="text-right">
+                                <p class="text-[9px] font-bold text-amber-600 uppercase tracking-widest mb-0.5">Temp Limits</p>
+                                <p class="text-xs font-bold text-gray-800 font-telemetry">{{ $node->custom_temp_warning }} <span class="text-gray-300">|</span> <span class="text-red-600">{{ $node->custom_temp_critical }}</span> °C</p>
                             </div>
-                            <div class="bg-slate-950 p-5 rounded-xl border border-slate-800">
-                                <label class="block text-xs font-bold uppercase tracking-wider text-red-500 mb-2">Critical Level (°C)</label>
-                                <input type="number" step="0.1" name="temp_critical" value="{{ $threshold->temp_critical }}" required class="w-full bg-slate-900 border border-slate-700 text-white text-base rounded-lg focus:ring-1 focus:ring-red-500 focus:border-red-500 block p-3 font-mono transition-colors">
-                                <p class="text-[10px] text-slate-500 mt-2">Triggers red evacuation protocol.</p>
+                            <div class="text-right border-l border-gray-100 pl-6">
+                                <p class="text-[9px] font-bold text-violet-600 uppercase tracking-widest mb-0.5">Smoke Limits</p>
+                                <p class="text-xs font-bold text-gray-800 font-telemetry">{{ $node->custom_smoke_warning }} <span class="text-gray-300">|</span> <span class="text-red-600">{{ $node->custom_smoke_critical }}</span> ppm</p>
                             </div>
                         </div>
                     </div>
-
-                    <div class="h-px bg-slate-800 w-full"></div>
-
-                    <div>
-                        <div class="flex items-center gap-3 mb-6">
-                            <div class="p-2 bg-slate-800/50 rounded-lg">
-                                <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
-                            </div>
-                            <div>
-                                <h3 class="font-bold text-white text-lg">Particulate Logic</h3>
-                                <p class="text-sm text-slate-500">Triggers for atmospheric smoke concentration.</p>
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div class="bg-slate-950 p-5 rounded-xl border border-slate-800">
-                                <label class="block text-xs font-bold uppercase tracking-wider text-amber-500 mb-2">Warning Level (%)</label>
-                                <input type="number" step="0.1" name="smoke_warning" value="{{ $threshold->smoke_warning }}" required class="w-full bg-slate-900 border border-slate-700 text-white text-base rounded-lg focus:ring-1 focus:ring-amber-500 focus:border-amber-500 block p-3 font-mono transition-colors">
-                            </div>
-                            <div class="bg-slate-950 p-5 rounded-xl border border-slate-800">
-                                <label class="block text-xs font-bold uppercase tracking-wider text-red-500 mb-2">Critical Level (%)</label>
-                                <input type="number" step="0.1" name="smoke_critical" value="{{ $threshold->smoke_critical }}" required class="w-full bg-slate-900 border border-slate-700 text-white text-base rounded-lg focus:ring-1 focus:ring-red-500 focus:border-red-500 block p-3 font-mono transition-colors">
-                            </div>
-                        </div>
-                    </div>
+                @endforeach
+            </div>
+        @else
+            <div class="p-6 flex flex-col items-center justify-center text-center">
+                 <div class="w-12 h-12 bg-gray-50 border border-gray-100 rounded-full flex items-center justify-center mb-3">
+                    <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                 </div>
-
-                <div class="p-6 bg-slate-950/50 border-t border-slate-800 flex items-center justify-between">
-                    <p class="text-xs text-slate-500 font-medium">Changes take effect immediately upon save.</p>
-                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-3 rounded-xl text-sm font-bold tracking-wider transition-all shadow-[0_0_15px_rgba(79,70,229,0.2)] hover:shadow-[0_0_25px_rgba(79,70,229,0.4)]">
-                        SAVE CONFIGURATION
-                    </button>
-                </div>
-            </form>
-        </main>
+                <p class="text-sm font-bold text-gray-700">All Nodes Utilizing Global Defaults</p>
+                <p class="text-xs text-gray-500 mt-1">No custom hardware overrides have been detected on the network.</p>
+            </div>
+        @endif
     </div>
-</body>
-</html>
+</div>
+@endsection
