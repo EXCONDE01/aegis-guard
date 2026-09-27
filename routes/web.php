@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
 // Public/Kiosk Dashboard (View Only)
@@ -52,6 +53,14 @@ Route::middleware('auth')->group(function () {
     // ==========================================
     Route::get('/settings', [DashboardController::class, 'settings'])->name('admin.settings');
     Route::put('/settings', [DashboardController::class, 'updateSettings'])->name('admin.settings.update');
+    Route::put('/settings/test-ping', [DashboardController::class, 'testApiBroadcast'])->name('admin.settings.test');
+
+    // ==========================================
+    // MODULE 6: OPERATOR PROFILE
+    // ==========================================
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
 require __DIR__.'/auth.php';

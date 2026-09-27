@@ -13,12 +13,16 @@ use Illuminate\Support\Facades\Log;
 class SensorController extends Controller {
     
     public function store(Request $request) {
+        // 1. ADDED: New validation rules for the diagnostic data
         $request->validate([
-            'hardware_id' => 'required|string',
-            'temp' => 'required|numeric',
-            'smoke' => 'required|numeric',
-            'latency' => 'nullable|integer',
-            'uptime' => 'nullable|string',
+            'hardware_id'    => 'required|string',
+            'temp'           => 'required|numeric',
+            'smoke'          => 'required|numeric',
+            'latency'        => 'nullable|integer',
+            'uptime'         => 'nullable|string',
+            'wifi_rssi'      => 'nullable|integer',
+            'uptime_seconds' => 'nullable|numeric',
+            'is_calibrating' => 'nullable|boolean',
         ]);
 
         // 1. Auto-register or fetch the existing node
@@ -43,18 +47,21 @@ class SensorController extends Controller {
 
         // 3. CAPTURE TELEMETRY & Update Node State
         $node->update([
-            'status' => $status,
+            'status'     => $status,
             'ip_address' => $request->ip(),
-            'latency' => $request->latency ?? rand(12, 45), 
-            'uptime' => $request->uptime ?? '0d 0h'
+            'latency'    => $request->latency ?? rand(12, 45), 
+            'uptime'     => $request->uptime ?? '0d 0h'
         ]);
 
-        // 4. Log the environmental reading for historical charting
+        // 4. ADDED: Log the environmental reading AND hardware diagnostics
         $node->logs()->create([
-            'temperature' => $request->temp,
-            'smoke_level' => $request->smoke,
-            'water_level' => $request->water ?? 0,
-            'status' => $status,
+            'temperature'    => $request->temp,
+            'smoke_level'    => $request->smoke,
+            'water_level'    => $request->water ?? 0,
+            'status'         => $status,
+            'wifi_rssi'      => $request->wifi_rssi,             // Pulled from ESP32
+            'uptime_seconds' => $request->uptime_seconds,        // Pulled from ESP32
+            'is_calibrating' => $request->is_calibrating ?? false, // Pulled from ESP32
         ]);
 
         // 5. TRIGGER PUSHOVER EMERGENCY ALARM (NDRRMC-Style)

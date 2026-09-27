@@ -14,6 +14,8 @@ class Setting extends Model
         'admin_email', 
         'pushover_app_token', 
         'pushover_user_key', 
-        'alerts_muted'
+        'alerts_muted',
+        'log_retention_days',       // New field
+        'sensor_polling_interval'   // New field
     ];
 }

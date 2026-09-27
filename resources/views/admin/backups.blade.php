@@ -29,7 +29,7 @@
         <div class="w-full bg-gray-100 rounded-full h-1.5 mb-2">
             <div class="bg-sky-500 h-1.5 rounded-full" style="width: 15%"></div>
         </div>
-        <p class="text-[10px] text-gray-500 font-medium">Automated 30-day retention pruning is active.</p>
+        <p class="text-[10px] text-gray-500 font-medium">Automated {{ $retentionDays }}-day retention pruning is active.</p>
     </div>
 
     <!-- AWS Replication Status -->

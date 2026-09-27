@@ -1,27 +1,35 @@
 @extends('layouts.admin')
-@section('page_title', 'Hazard History | Aegis-Guard')
+@section('page_title', 'Hazard History | FireNet')
 @section('header_title', 'Audit & Compliance Logs')
 @section('header_subtitle', 'Historical environmental data and system state changes for incident investigation.')
 
 @section('header_actions')
-    <!-- Pass the current filters to the export route so it only downloads what you are looking at -->
-    <a href="{{ route('admin.history.export', request()->all()) }}" 
-       class="bg-gray-800 hover:bg-gray-900 text-white text-[13px] font-bold px-5 py-2.5 rounded shadow-sm transition-all flex items-center gap-2 uppercase tracking-wider">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-        Export CSV Report
-    </a>
+    <div class="flex items-center gap-4">
+        <!-- Live Sync Indicator -->
+        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold uppercase tracking-wider border border-emerald-100 shadow-sm">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> 
+            Live Sync: {{ $pollingInterval / 1000 }}s
+        </span>
+
+        <!-- Export Button -->
+        <a href="{{ route('admin.history.export', request()->all()) }}" 
+           class="bg-gray-800 hover:bg-gray-900 text-white text-[13px] font-bold px-5 py-2.5 rounded shadow-sm hover:shadow transition-all flex items-center gap-2 uppercase tracking-wider">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+            Export CSV Report
+        </a>
+    </div>
 @endsection
 
 @section('content')
 <div class="space-y-6">
 
     <!-- SUMMARY METRICS -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div id="history-metrics" class="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-            <h3 class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Total Logs (30 Days)</h3>
+        <h3 class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Total Logs ({{ $retentionDays }} Days)</h3>
             <div class="text-3xl font-black text-gray-900 font-telemetry">{{ number_format($totalEvents) }}</div>
         </div>
-        <div class="bg-white border {{ $criticalBreaches > 0 ? 'border-red-300 bg-red-50' : 'border-gray-200' }} rounded-xl p-6 shadow-sm">
+        <div class="bg-white border {{ $criticalBreaches > 0 ? 'border-red-300 bg-red-50' : 'border-gray-200' }} rounded-xl p-6 shadow-sm transition-colors">
             <h3 class="text-[10px] font-bold {{ $criticalBreaches > 0 ? 'text-red-600' : 'text-gray-500' }} uppercase tracking-widest mb-2">Critical Breaches</h3>
             <div class="text-3xl font-black {{ $criticalBreaches > 0 ? 'text-red-600' : 'text-gray-900' }} font-telemetry">{{ number_format($criticalBreaches) }}</div>
         </div>
@@ -31,14 +39,14 @@
         </div>
     </div>
 
-    <div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+    <div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden flex flex-col h-full">
         
         <!-- FILTER BAR -->
         <div class="p-5 border-b border-gray-100 bg-gray-50/50">
             <form method="GET" action="{{ route('admin.history') }}" class="flex flex-col md:flex-row gap-4 items-end">
                 <div class="w-full md:w-64">
                     <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Filter by Zone</label>
-                    <select name="node_id" class="w-full bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-sky-500 focus:border-sky-500 p-2.5">
+                    <select name="node_id" class="w-full bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-sky-500 focus:border-sky-500 p-2.5 shadow-sm">
                         <option value="">All Zones</option>
                         @foreach($nodes as $node)
                             <option value="{{ $node->id }}" {{ request('node_id') == $node->id ? 'selected' : '' }}>
@@ -50,7 +58,7 @@
                 
                 <div class="w-full md:w-48">
                     <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">System State</label>
-                    <select name="status" class="w-full bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-sky-500 focus:border-sky-500 p-2.5">
+                    <select name="status" class="w-full bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-sky-500 focus:border-sky-500 p-2.5 shadow-sm">
                         <option value="">All States</option>
                         <option value="SAFE" {{ request('status') == 'SAFE' ? 'selected' : '' }}>SAFE</option>
                         <option value="WARNING" {{ request('status') == 'WARNING' ? 'selected' : '' }}>WARNING</option>
@@ -72,7 +80,7 @@
         </div>
 
         <!-- DATA TABLE -->
-        <div class="overflow-x-auto">
+        <div class="overflow-x-auto flex-1">
             <table class="w-full text-sm text-left text-gray-600">
                 <thead class="text-[10px] text-gray-500 uppercase tracking-widest bg-gray-50 border-b border-gray-100">
                     <tr>
@@ -83,7 +91,7 @@
                         <th class="px-6 py-4 font-bold text-center">Trigger State</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-100">
+                <tbody id="history-table-body" class="divide-y divide-gray-100">
                     @forelse($logs as $log)
                         @php
                             $isCritical = $log->status === 'CRITICAL';
@@ -129,10 +137,44 @@
         
         <!-- Pagination -->
         @if($logs->hasPages())
-            <div class="p-5 border-t border-gray-100 bg-gray-50">
+            <div id="history-pagination" class="p-5 border-t border-gray-100 bg-gray-50 shrink-0">
                 {{ $logs->links() }}
             </div>
         @endif
     </div>
 </div>
+@endsection
+
+@section('scripts')
+<script>
+    // Fetch live logs directly respecting the Global Settings Polling Frequency
+    setInterval(function() {
+        // Halt fetching if the user is currently typing or using the filter dropdowns
+        const activeTag = document.activeElement ? document.activeElement.tagName : '';
+        if (['INPUT', 'TEXTAREA', 'SELECT'].includes(activeTag)) return; 
+
+        fetch(window.location.href)
+            .then(response => response.text())
+            .then(html => {
+                let doc = new DOMParser().parseFromString(html, 'text/html');
+                
+                // 1. Seamlessly update the table body
+                let newTableBody = doc.getElementById('history-table-body');
+                if (newTableBody) document.getElementById('history-table-body').innerHTML = newTableBody.innerHTML;
+
+                // 2. Seamlessly update the summary metrics
+                let newMetrics = doc.getElementById('history-metrics');
+                if (newMetrics) document.getElementById('history-metrics').innerHTML = newMetrics.innerHTML;
+
+                // 3. Seamlessly update pagination links (if available)
+                let newPagination = doc.getElementById('history-pagination');
+                let oldPagination = document.getElementById('history-pagination');
+                if (newPagination && oldPagination) {
+                    oldPagination.innerHTML = newPagination.innerHTML;
+                }
+            })
+            .catch(error => console.error('History Sync Error:', error));
+
+    }, {{ $pollingInterval }}); // Uses the exact dynamic interval from your Settings
+</script>
 @endsection

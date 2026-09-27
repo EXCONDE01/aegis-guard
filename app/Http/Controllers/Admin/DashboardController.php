@@ -20,7 +20,11 @@ class DashboardController extends Controller
 
     public function index()
     {
-        // Fetch nodes with their latest log, then map over them to check offline status
+        // 1. Fetch the dynamic polling interval from settings (convert seconds to milliseconds)
+        $settings = \App\Models\Setting::first();
+        $pollingInterval = $settings ? $settings->sensor_polling_interval * 1000 : 5000;
+
+        // 2. Fetch nodes with their latest log, then map over them to check offline status
         $nodes = Node::with(['logs' => function($query) {
             $query->latest()->limit(1);
         }])->get()->map(function ($node) {
@@ -35,14 +39,20 @@ class DashboardController extends Controller
             return $node;
         });
         
-        return view('dashboard', compact('nodes'));
+        // 3. Pass both nodes and the polling interval to the view
+        return view('dashboard', compact('nodes', 'pollingInterval'));
     }
 
     public function history(\Illuminate\Http\Request $request)
     {
+        // 1. Fetch dynamic settings
+        $settings = \App\Models\Setting::first();
+        $pollingInterval = $settings ? $settings->sensor_polling_interval * 1000 : 5000;
+        $retentionDays = $settings ? $settings->log_retention_days : 30;
+
         $query = \App\Models\NodeLog::with('node')->latest();
 
-        // 1. Apply Filters if requested
+        // 2. Apply Filters if requested
         if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
@@ -50,14 +60,13 @@ class DashboardController extends Controller
             $query->where('node_id', $request->node_id);
         }
 
-        // 2. Paginate with query strings so filters don't break on page 2
         $logs = $query->paginate(50)->withQueryString();
         $nodes = \App\Models\Node::all();
 
-        // 3. Calculate Summary Metrics (Last 30 Days)
-        $thirtyDaysAgo = now()->subDays(30);
-        $totalEvents = \App\Models\NodeLog::where('created_at', '>=', $thirtyDaysAgo)->count();
-        $criticalBreaches = \App\Models\NodeLog::where('created_at', '>=', $thirtyDaysAgo)->where('status', 'CRITICAL')->count();
+        // 3. Calculate Summary Metrics dynamically based on Retention Days
+        $retentionLimit = now()->subDays($retentionDays);
+        $totalEvents = \App\Models\NodeLog::where('created_at', '>=', $retentionLimit)->count();
+        $criticalBreaches = \App\Models\NodeLog::where('created_at', '>=', $retentionLimit)->where('status', 'CRITICAL')->count();
 
         // 4. Calculate Most Volatile Zone
         $mostVolatile = \App\Models\NodeLog::select('node_id', \DB::raw('count(*) as total'))
@@ -71,9 +80,9 @@ class DashboardController extends Controller
             $volatileZoneName = $mostVolatile->node->location_name . ' (' . $mostVolatile->node->specific_area . ')';
         }
 
-        return view('admin.history', compact('logs', 'nodes', 'totalEvents', 'criticalBreaches', 'volatileZoneName'));
+        // 5. Pass $retentionDays to the view so the UI label updates
+        return view('admin.history', compact('logs', 'nodes', 'totalEvents', 'criticalBreaches', 'volatileZoneName', 'pollingInterval', 'retentionDays'));
     }
-
     public function exportHistoryCsv(\Illuminate\Http\Request $request)
     {
         $query = \App\Models\NodeLog::with('node')->latest();
@@ -333,6 +342,10 @@ class DashboardController extends Controller
     {
         abort_if(auth()->user()->role !== 'admin', 403, 'Unauthorized Access: IT Operations Only.');
         
+        // 1. Fetch the dynamic setting for the UI label
+        $settings = \App\Models\Setting::first();
+        $retentionDays = $settings ? $settings->log_retention_days : 30;
+
         $disk = \Illuminate\Support\Facades\Storage::disk('local');
         if (!$disk->exists('backups')) {
             $disk->makeDirectory('backups');
@@ -358,20 +371,27 @@ class DashboardController extends Controller
         
         $totalSizeFormatted = number_format($totalSize / 1048576, 2);
         
-        return view('admin.backups', compact('backups', 'totalSizeFormatted'));
+        // 2. Pass $retentionDays to the view
+        return view('admin.backups', compact('backups', 'totalSizeFormatted', 'retentionDays'));
     }
 
     public function generateBackup()
     {
         abort_if(auth()->user()->role !== 'admin', 403, 'Unauthorized Access: IT Operations Only.');
 
+        // 1. DYNAMIC DATABASE PRUNING
+        $settings = \App\Models\Setting::first();
+        $retentionDays = $settings ? $settings->log_retention_days : 30;
+        
+        // Scrub telemetry logs older than the retention policy BEFORE backing up
+        $deletedLogs = \App\Models\NodeLog::where('created_at', '<', now()->subDays($retentionDays))->delete();
+
+        // 2. GENERATE SNAPSHOT
         \Illuminate\Support\Facades\Storage::makeDirectory('backups');
         
-        // Using your original filename prefix to match the existing vault files
         $filename = "aegis_db_backup_" . now()->format('Y_m_d_His') . ".sql";
         $path = \Illuminate\Support\Facades\Storage::path('backups/' . $filename);
 
-        // Reverting to your exact sprintf syntax which XAMPP requires
         $command = sprintf(
             'mysqldump --user="%s" --password="%s" --host="%s" "%s" > "%s"',
             env('DB_USERNAME', 'root'),
@@ -389,17 +409,19 @@ class DashboardController extends Controller
             return redirect()->back()->with('error', 'SYSTEM FAILURE: mysqldump execution failed. Check XAMPP environment variables.');
         }
 
-        // Automated 30-Day Retention Pruning
+        // 3. FILE SYSTEM PRUNING (Match the dynamic setting)
         $disk = \Illuminate\Support\Facades\Storage::disk('local');
         $files = $disk->files('backups');
         $now = time();
+        $retentionSeconds = $retentionDays * 86400; // Convert days to seconds
+
         foreach ($files as $file) {
-            if ($now - $disk->lastModified($file) >= 2592000) { 
+            if ($now - $disk->lastModified($file) >= $retentionSeconds) { 
                 $disk->delete($file);
             }
         }
 
-        return redirect()->back()->with('success', 'System snapshot generated successfully. AWS EC2 off-site replication queued.');
+        return redirect()->back()->with('success', "System snapshot generated successfully. Automated maintenance purged {$deletedLogs} expired telemetry logs.");
     }
 
     public function downloadBackup($filename)
@@ -427,25 +449,20 @@ class DashboardController extends Controller
 
         $absolutePath = \Illuminate\Support\Facades\Storage::path($path);
 
-        // Using your exact sprintf syntax for the restore function as well
-        $command = sprintf(
-            'mysql --user="%s" --password="%s" --host="%s" "%s" < "%s"',
-            env('DB_USERNAME', 'root'),
-            env('DB_PASSWORD', ''),
-            env('DB_HOST', '127.0.0.1'),
-            env('DB_DATABASE', 'aegis_db'),
-            $absolutePath
-        );
-
-        $returnVar = NULL;
-        $output  = NULL;
-        exec($command, $output, $returnVar);
-
-        if ($returnVar !== 0) {
-            return redirect()->back()->with('error', 'CRITICAL ERROR: Rollback failed during execution.');
+        try {
+            // Bypass Windows CMD entirely and use Laravel's native database engine
+            $sqlDump = file_get_contents($absolutePath);
+            
+            // Execute the raw SQL dump directly into the database
+            \Illuminate\Support\Facades\DB::unprepared($sqlDump);
+            
+            return redirect()->back()->with('success', "DISASTER RECOVERY SUCCESS: Command center restored to snapshot {$filename}.");
+            
+        } catch (\Exception $e) {
+            // If it fails, catch the exact Laravel error so we can read it
+            \Illuminate\Support\Facades\Log::error('Restore Failed: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'CRITICAL ERROR: Rollback failed. Check laravel.log for details.');
         }
-
-        return redirect()->back()->with('success', "DISASTER RECOVERY SUCCESS: Command center restored to snapshot {$filename}.");
     }
     public function exportCsv($id)
     {
@@ -545,7 +562,9 @@ class DashboardController extends Controller
                 'admin_email' => 'admin@lspu.edu.ph',
                 'pushover_app_token' => env('PUSHOVER_APP_TOKEN', ''),
                 'pushover_user_key' => env('PUSHOVER_USER_KEY', ''),
-                'alerts_muted' => false
+                'alerts_muted' => false,
+                'log_retention_days' => 30,
+                'sensor_polling_interval' => 5
             ]
         );
 
@@ -564,8 +583,35 @@ class DashboardController extends Controller
             'pushover_app_token' => $request->pushover_app_token,
             'pushover_user_key' => $request->pushover_user_key,
             'alerts_muted' => $request->has('alerts_muted'),
+            'log_retention_days' => $request->log_retention_days,
+            'sensor_polling_interval' => $request->sensor_polling_interval,
         ]);
 
         return redirect()->back()->with('success', 'Global system settings successfully updated.');
+    }
+
+    public function testApiBroadcast()
+    {
+        abort_if(auth()->user()->role !== 'admin', 403, 'Unauthorized Access: IT Operations Only.');
+
+        $settings = \App\Models\Setting::first();
+
+        if (empty($settings->pushover_app_token) || empty($settings->pushover_user_key)) {
+            return redirect()->back()->with('error', 'API Handshake Failed: Missing Pushover Credentials.');
+        }
+
+        $response = \Illuminate\Support\Facades\Http::post('https://api.pushover.net/1/messages.json', [
+            'token' => $settings->pushover_app_token,
+            'user' => $settings->pushover_user_key,
+            'message' => "FireNet API Handshake Successful! Established connection from " . $settings->campus_name,
+            'title' => 'FireNet System Test',
+            'priority' => 0,
+        ]);
+
+        if ($response->successful()) {
+            return redirect()->back()->with('success', 'API Handshake Verified! Test broadcast dispatched to your mobile device.');
+        }
+
+        return redirect()->back()->with('error', 'API Handshake Failed: Invalid credentials or network timeout.');
     }
 }
