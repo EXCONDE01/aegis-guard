@@ -11,6 +11,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class DashboardController extends Controller
 {
@@ -69,7 +72,7 @@ class DashboardController extends Controller
         $criticalBreaches = \App\Models\NodeLog::where('created_at', '>=', $retentionLimit)->where('status', 'CRITICAL')->count();
 
         // 4. Calculate Most Volatile Zone
-        $mostVolatile = \App\Models\NodeLog::select('node_id', \DB::raw('count(*) as total'))
+        $mostVolatile = \App\Models\NodeLog::select('node_id', DB::raw('count(*) as total'))
             ->where('status', 'CRITICAL')
             ->groupBy('node_id')
             ->orderByDesc('total')
@@ -83,6 +86,7 @@ class DashboardController extends Controller
         // 5. Pass $retentionDays to the view so the UI label updates
         return view('admin.history', compact('logs', 'nodes', 'totalEvents', 'criticalBreaches', 'volatileZoneName', 'pollingInterval', 'retentionDays'));
     }
+
     public function exportHistoryCsv(\Illuminate\Http\Request $request)
     {
         $query = \App\Models\NodeLog::with('node')->latest();
@@ -128,6 +132,11 @@ class DashboardController extends Controller
 
     public function dispatchAlert(\Illuminate\Http\Request $request)
     {
+        // --- NEW: TRIGGER THE ESP32 HARDWARE ALARM ---
+        // This sets the global override flag to 'true' for 5 minutes.
+        // The ESP32 will pick this up on its next polling cycle and sound the buzzer.
+        Cache::put('manual_override', true, now()->addMinutes(5));
+
         $contacts = \App\Models\Contact::where('is_active', true)->get();
 
         if ($contacts->isEmpty()) {
@@ -141,7 +150,7 @@ class DashboardController extends Controller
             $key = $contact->pushover_key ?? $contact->user_key;
             if (!$key) continue;
 
-            $response = \Illuminate\Support\Facades\Http::asForm()->post('https://api.pushover.net/1/messages.json', [
+            $response = Http::asForm()->post('https://api.pushover.net/1/messages.json', [
                 'token' => env('PUSHOVER_APP_TOKEN'), 
                 'user' => $key,
                 'message' => "🚨 MANUAL OVERRIDE AUTHORIZED 🚨\nEvacuate facility immediately. This is not a drill.",
@@ -164,7 +173,7 @@ class DashboardController extends Controller
             return redirect()->back()->with('error', "PUSHOVER API FAILED: " . ($errorMessage ?? "Check your .env PUSHOVER_APP_TOKEN."));
         }
 
-        return redirect()->back()->with('emergency_success', "PROTOCOL OVERRIDE SUCCESS: Emergency broadcast dispatched to {$successCount} active responders.");
+        return redirect()->back()->with('emergency_success', "PROTOCOL OVERRIDE SUCCESS: Emergency broadcast dispatched to {$successCount} active responders. Physical alarms activated.");
     }
 
     public function contacts()
@@ -197,7 +206,7 @@ class DashboardController extends Controller
     {
         $contact = \App\Models\Contact::findOrFail($id);
         
-        \Illuminate\Support\Facades\Http::asForm()->post('https://api.pushover.net/1/messages.json', [
+        Http::asForm()->post('https://api.pushover.net/1/messages.json', [
             'token' => env('PUSHOVER_APP_TOKEN'),
             'user' => $contact->pushover_key ?? $contact->user_key,
             'message' => "TEST PING: Aegis-Guard communications check. System is nominal.",
@@ -346,7 +355,7 @@ class DashboardController extends Controller
         $settings = \App\Models\Setting::first();
         $retentionDays = $settings ? $settings->log_retention_days : 30;
 
-        $disk = \Illuminate\Support\Facades\Storage::disk('local');
+        $disk = Storage::disk('local');
         if (!$disk->exists('backups')) {
             $disk->makeDirectory('backups');
         }
@@ -362,7 +371,7 @@ class DashboardController extends Controller
                 'name' => basename($file),
                 'size' => number_format($size / 1048576, 2) . ' MB',
                 'timestamp' => $disk->lastModified($file),
-                'date' => \Carbon\Carbon::createFromTimestamp($disk->lastModified($file))->format('M d, Y - H:i:s')
+                'date' => Carbon::createFromTimestamp($disk->lastModified($file))->format('M d, Y - H:i:s')
             ];
         }
 
@@ -387,10 +396,10 @@ class DashboardController extends Controller
         $deletedLogs = \App\Models\NodeLog::where('created_at', '<', now()->subDays($retentionDays))->delete();
 
         // 2. GENERATE SNAPSHOT
-        \Illuminate\Support\Facades\Storage::makeDirectory('backups');
+        Storage::makeDirectory('backups');
         
         $filename = "aegis_db_backup_" . now()->format('Y_m_d_His') . ".sql";
-        $path = \Illuminate\Support\Facades\Storage::path('backups/' . $filename);
+        $path = Storage::path('backups/' . $filename);
 
         $command = sprintf(
             'mysqldump --user="%s" --password="%s" --host="%s" "%s" > "%s"',
@@ -410,7 +419,7 @@ class DashboardController extends Controller
         }
 
         // 3. FILE SYSTEM PRUNING (Match the dynamic setting)
-        $disk = \Illuminate\Support\Facades\Storage::disk('local');
+        $disk = Storage::disk('local');
         $files = $disk->files('backups');
         $now = time();
         $retentionSeconds = $retentionDays * 86400; // Convert days to seconds
@@ -431,39 +440,41 @@ class DashboardController extends Controller
         $path = 'backups/' . $filename;
         
         // Use Laravel's Storage facade to safely resolve OS paths
-        if (\Illuminate\Support\Facades\Storage::disk('local')->exists($path)) {
-            return \Illuminate\Support\Facades\Storage::disk('local')->download($path);
+        if (Storage::disk('local')->exists($path)) {
+            return Storage::disk('local')->download($path);
         }
         
         return redirect()->back()->with('error', 'Backup file missing or corrupted. Path resolution failed.');
     }
+
     public function restoreBackup(\Illuminate\Http\Request $request, $filename)
     {
         abort_if(auth()->user()->role !== 'admin', 403, 'Unauthorized Access: IT Operations Only.');
 
         $path = 'backups/' . $filename;
 
-        if (!\Illuminate\Support\Facades\Storage::exists($path)) {
+        if (!Storage::exists($path)) {
             return redirect()->back()->with('error', 'Restoration aborted: Target archive snapshot missing.');
         }
 
-        $absolutePath = \Illuminate\Support\Facades\Storage::path($path);
+        $absolutePath = Storage::path($path);
 
         try {
             // Bypass Windows CMD entirely and use Laravel's native database engine
             $sqlDump = file_get_contents($absolutePath);
             
             // Execute the raw SQL dump directly into the database
-            \Illuminate\Support\Facades\DB::unprepared($sqlDump);
+            DB::unprepared($sqlDump);
             
             return redirect()->back()->with('success', "DISASTER RECOVERY SUCCESS: Command center restored to snapshot {$filename}.");
             
         } catch (\Exception $e) {
             // If it fails, catch the exact Laravel error so we can read it
-            \Illuminate\Support\Facades\Log::error('Restore Failed: ' . $e->getMessage());
+            Log::error('Restore Failed: ' . $e->getMessage());
             return redirect()->back()->with('error', 'CRITICAL ERROR: Rollback failed. Check laravel.log for details.');
         }
     }
+
     public function exportCsv($id)
     {
         $node = \App\Models\Node::findOrFail($id);
@@ -499,6 +510,7 @@ class DashboardController extends Controller
 
         return response()->stream($callback, 200, $headers);
     }
+
     // ==========================================
     // MODULE 4: USER MANAGEMENT (IT PERSONNEL ONLY)
     // ==========================================
@@ -600,7 +612,7 @@ class DashboardController extends Controller
             return redirect()->back()->with('error', 'API Handshake Failed: Missing Pushover Credentials.');
         }
 
-        $response = \Illuminate\Support\Facades\Http::post('https://api.pushover.net/1/messages.json', [
+        $response = Http::post('https://api.pushover.net/1/messages.json', [
             'token' => $settings->pushover_app_token,
             'user' => $settings->pushover_user_key,
             'message' => "FireNet API Handshake Successful! Established connection from " . $settings->campus_name,

@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Log;
 class SensorController extends Controller {
     
     public function store(Request $request) {
-        // 1. ADDED: New validation rules for the diagnostic data
+        // 1. Validate incoming diagnostics
         $request->validate([
             'hardware_id'    => 'required|string',
             'temp'           => 'required|numeric',
@@ -25,7 +25,7 @@ class SensorController extends Controller {
             'is_calibrating' => 'nullable|boolean',
         ]);
 
-        // 1. Auto-register or fetch the existing node
+        // 2. Auto-register or fetch existing node
         $node = Node::firstOrCreate(
             ['hardware_id' => $request->hardware_id],
             [
@@ -35,17 +35,35 @@ class SensorController extends Controller {
             ]
         );
 
-        // 2. Evaluate environmental hazard thresholds
-        $config = Threshold::first();
+        // 3. FETCH GLOBAL CONFIG
+        $globalConfig = Threshold::first();
+        
+        // 4. APPLY CALIBRATION OFFSETS (The Fix)
+        // Default to 0 if no config exists yet
+        $tempOffset = $globalConfig ? $globalConfig->temp_offset : 0;
+        $smokeOffset = $globalConfig ? $globalConfig->smoke_offset : 0;
+
+        // Create the new calibrated values by adding the offsets
+        $calibratedTemp = $request->temp + $tempOffset;
+        $calibratedSmoke = $request->smoke + $smokeOffset;
+
+        // 5. ZONAL OVERRIDE LOGIC
         $status = 'SAFE';
         
-        if ($config && ($request->temp >= $config->temp_critical || $request->smoke >= $config->smoke_critical)) { 
+        // Determine which thresholds to use (Zonal vs Global)
+        $tCrit = $node->has_custom_thresholds ? $node->custom_temp_critical : ($globalConfig ? $globalConfig->temp_critical : 45.0);
+        $sCrit = $node->has_custom_thresholds ? $node->custom_smoke_critical : ($globalConfig ? $globalConfig->smoke_critical : 1000);
+        $tWarn = $node->has_custom_thresholds ? $node->custom_temp_warning : ($globalConfig ? $globalConfig->temp_warning : 40.0);
+        $sWarn = $node->has_custom_thresholds ? $node->custom_smoke_warning : ($globalConfig ? $globalConfig->smoke_warning : 800);
+
+        // Evaluate environmental hazard thresholds against the CALIBRATED values
+        if ($calibratedTemp >= $tCrit || $calibratedSmoke >= $sCrit) { 
             $status = 'CRITICAL';
-        } elseif ($config && ($request->temp >= $config->temp_warning || $request->smoke >= $config->smoke_warning)) { 
+        } elseif ($calibratedTemp >= $tWarn || $calibratedSmoke >= $sWarn) { 
             $status = 'WARNING'; 
         }
 
-        // 3. CAPTURE TELEMETRY & Update Node State
+        // 6. Update Node State & Log Telemetry
         $node->update([
             'status'     => $status,
             'ip_address' => $request->ip(),
@@ -53,40 +71,38 @@ class SensorController extends Controller {
             'uptime'     => $request->uptime ?? '0d 0h'
         ]);
 
-        // 4. ADDED: Log the environmental reading AND hardware diagnostics
+        // Save the CALIBRATED data to the database, not the raw data
         $node->logs()->create([
-            'temperature'    => $request->temp,
-            'smoke_level'    => $request->smoke,
+            'temperature'    => $calibratedTemp,
+            'smoke_level'    => $calibratedSmoke,
             'water_level'    => $request->water ?? 0,
             'status'         => $status,
-            'wifi_rssi'      => $request->wifi_rssi,             // Pulled from ESP32
-            'uptime_seconds' => $request->uptime_seconds,        // Pulled from ESP32
-            'is_calibrating' => $request->is_calibrating ?? false, // Pulled from ESP32
+            'wifi_rssi'      => $request->wifi_rssi,             
+            'uptime_seconds' => $request->uptime_seconds,        
+            'is_calibrating' => $request->is_calibrating ?? false, 
         ]);
 
-        // 5. TRIGGER PUSHOVER EMERGENCY ALARM (NDRRMC-Style)
+        // 7. Trigger Pushover Emergency Alarm
         if ($status === 'CRITICAL') {
             $cacheKey = 'alert_cooldown_' . $node->hardware_id;
 
-            // Send only if no alert was dispatched in the last 2 minutes
             if (!Cache::has($cacheKey)) {
                 try {
-                    // MUST use asForm() and force IPv4 to prevent 400 Bad Request
                     $response = Http::asForm()->withOptions([
                         \CURLOPT_IPRESOLVE => \CURL_IPRESOLVE_V4
                     ])->post('https://api.pushover.net/1/messages.json', [
                         'token'    => env('PUSHOVER_APP_TOKEN'),
-                        'user'     => env('PUSHOVER_USER_KEY'), // Ensure this is a Group Key
+                        'user'     => env('PUSHOVER_USER_KEY'), 
                         'title'    => 'EMERGENCY: FIRE / HAZARD ALERT',
-                        'message'  => "CRITICAL BREACH at {$node->location_name} ({$node->specific_area})! Temp: {$request->temp}°C | Smoke: {$request->smoke} PPM",
-                        'priority' => 2,                // Bypasses silent/DND modes
-                        'retry'    => 30,               // MUST be 30 or higher (Pushover API rule)
-                        'expire'   => 3600,             // ...for up to 1 hour until acknowledged
-                        'sound'    => 'UDRRMC_SIREN',          // Reverted to lowercase standard siren to guarantee delivery
+                        // Ensure the push notification shows the corrected, calibrated values
+                        'message'  => "CRITICAL BREACH at {$node->location_name} ({$node->specific_area})! Temp: {$calibratedTemp}°C | Smoke: {$calibratedSmoke} PPM",
+                        'priority' => 2,                
+                        'retry'    => 30,               
+                        'expire'   => 3600,             
+                        'sound'    => 'UDRRMC_SIREN',          
                     ]);
 
                     if ($response->successful()) {
-                        // Set a 2-minute cooldown before sending another push for this node
                         Cache::put($cacheKey, true, now()->addMinutes(2));
                         Log::info("Automated alarm dispatched for Node {$node->hardware_id}");
                     } else {
@@ -98,9 +114,11 @@ class SensorController extends Controller {
             }
         }
 
+        // 8. Return response to ESP32 containing BOTH status and live override flag
         return response()->json([
-            'message' => 'Telemetry & Environmental Data Processed Successfully', 
-            'status' => $status
+            'message'        => 'Telemetry & Environmental Data Processed Successfully', 
+            'status'         => $status,
+            'override_alarm' => Cache::get('manual_override', false)
         ], 200);
     }
 }

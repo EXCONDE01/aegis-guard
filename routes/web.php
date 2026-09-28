@@ -4,16 +4,17 @@ use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
-// Public/Kiosk Dashboard (View Only)
-Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
-
 // Secured Administrator Routes
 Route::middleware('auth')->group(function () {
+    
+    // Main Dashboard
+    Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
     
     // ==========================================
     // MODULE 1: MONITORING & ALERTS
     // ==========================================
     Route::post('/dispatch', [DashboardController::class, 'dispatchAlert'])->name('admin.dispatch');
+    Route::post('/admin/silence-alarm', [DashboardController::class, 'silenceAlarm'])->name('admin.silence_alarm');
     Route::get('/history', [DashboardController::class, 'history'])->name('admin.history');
     Route::get('/history/export', [DashboardController::class, 'exportHistoryCsv'])->name('admin.history.export');
     Route::get('/contacts', [DashboardController::class, 'contacts'])->name('admin.contacts');

@@ -4,7 +4,7 @@
 @section('header_subtitle', 'Manage core institution parameters, telemetry API gateways, and emergency override policies.')
 
 @section('content')
-<div class="space-y-8 max-w-6xl pb-12">
+<div class="space-y-8 w-full pb-12">
 
     <form method="POST" action="{{ route('admin.settings.update') }}" class="space-y-8">
         @csrf
