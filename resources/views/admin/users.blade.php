@@ -1,5 +1,5 @@
 @extends('layouts.admin')
-@section('page_title', 'User Management | FireNet')
+@section('page_title', 'User Management')
 @section('header_title', 'Identity & Access Management')
 @section('header_subtitle', 'Provision new operator credentials and revoke system access.')
 

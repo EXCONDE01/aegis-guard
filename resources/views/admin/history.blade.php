@@ -1,5 +1,5 @@
 @extends('layouts.admin')
-@section('page_title', 'Hazard History | FireNet')
+@section('page_title', 'Hazard History')
 @section('header_title', 'Audit & Compliance Logs')
 @section('header_subtitle', 'Historical environmental data and system state changes for incident investigation.')
 

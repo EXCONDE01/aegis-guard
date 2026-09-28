@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@yield('page_title', 'FireNet Command Center')</title>
+    <link rel="icon" type="image/svg+xml" href="{{ asset('firenet-icon.svg') }}">
     
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -36,9 +37,7 @@
             
             <!-- Branding -->
             <div class="flex items-center gap-3">
-                <div class="w-8 h-8 bg-sky-500 rounded flex items-center justify-center shadow-lg shadow-sky-500/20">
-                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                </div>
+                <img src="{{ asset('firenet-icon.svg') }}" alt="FireNet Logo" class="w-9 h-9 drop-shadow-md">
                 <div>
                     <h1 class="text-lg font-black tracking-tight leading-none text-white">FireNet</h1>
                     <p class="text-[9px] font-bold tracking-widest text-slate-400 uppercase mt-0.5">Hazard Detection</p>

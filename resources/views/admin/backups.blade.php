@@ -1,5 +1,5 @@
 @extends('layouts.admin')
-@section('page_title', 'System Backups | Aegis-Guard')
+@section('page_title', 'System Backups')
 @section('header_title', 'Disaster Recovery Center')
 @section('header_subtitle', 'Manage automated MySQL snapshots, monitor local storage analytics, and configure remote replication.')
 

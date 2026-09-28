@@ -1,5 +1,5 @@
 @extends('layouts.admin')
-@section('page_title', 'Thresholds | Aegis-Guard')
+@section('page_title', 'Thresholds')
 @section('header_title', 'Global Hazard Thresholds')
 @section('header_subtitle', 'Define the baseline environmental parameters, configure hardware calibration offsets, and monitor compliance.')
 

@@ -1,5 +1,5 @@
 @extends('layouts.admin')
-@section('page_title', 'Alert Directory | Aegis-Guard')
+@section('page_title', 'Alert Directory')
 @section('header_title', 'Emergency Contacts')
 @section('header_subtitle', 'Manage emergency responders, configure escalation tiers, and test API communication links.')
 

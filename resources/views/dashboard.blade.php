@@ -1,5 +1,5 @@
 @extends('layouts.admin')
-@section('page_title', 'Command Center | FireNet')
+@section('page_title', 'Command Center')
 @section('header_title', 'Facility Telemetry')
 
 @section('header_actions')
@@ -91,16 +91,6 @@
     
     if ($safe30 == 0 && $warn30 == 0 && $crit30 == 0) { $safe30 = 1; } 
     $hazardChartData = [$safe30, $warn30, $crit30];
-
-    // 2. Calculate 7-Day Baseline (Avg Temperature per day)
-    $baselineCategories = [];
-    $baselineData = [];
-    for ($i = 6; $i >= 0; $i--) {
-        $date = now()->subDays($i);
-        $baselineCategories[] = $date->format('D');
-        $avgTemp = \App\Models\NodeLog::whereDate('created_at', $date->toDateString())->avg('temperature');
-        $baselineData[] = $avgTemp ? round($avgTemp, 1) : 28.0; 
-    }
 @endphp
 
 <!-- Custom NOC Scrollbar Style -->
@@ -353,7 +343,10 @@
         <div class="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
             <div class="flex justify-between items-center mb-2">
                 <h4 class="text-xs font-bold text-gray-800 uppercase tracking-wider">7-Day Baseline</h4>
-                <span class="text-[9px] font-bold text-gray-400 uppercase">Avg Temp</span>
+                <div class="flex gap-3">
+                    <span class="text-[9px] font-bold text-sky-500 uppercase flex items-center gap-1"><span class="w-2 h-2 bg-sky-400 rounded-full"></span> Temp °C</span>
+                    <span class="text-[9px] font-bold text-violet-500 uppercase flex items-center gap-1"><span class="w-2 h-2 bg-violet-400 rounded-full"></span> Smoke %</span>
+                </div>
             </div>
             <div id="analyticsBarChart" class="h-40 w-full"></div>
         </div>
@@ -411,18 +404,50 @@
 
         // 2. Dynamic 7-Day Baseline Trend Chart
         var barOptions = {
-            series: [{ name: 'Avg Temp', data: @json($baselineData) }],
-            chart: { type: 'bar', height: 180, toolbar: { show: false }, fontFamily: 'Inter, sans-serif' },
-            colors: ['#38bdf8'],
-            plotOptions: { bar: { borderRadius: 4, columnWidth: '60%' } },
-            dataLabels: { enabled: false },
+            series: [
+                { name: 'Avg Temp °C', data: @json($tempData) },
+                { name: 'Avg Smoke %', data: @json($smokeData) }
+            ],
+            chart: { 
+                type: 'bar', 
+                height: 180, 
+                toolbar: { show: false }, 
+                fontFamily: 'Inter, sans-serif',
+                stacked: false // Set to true if you prefer the bars stacked on top of each other
+            },
+            colors: ['#38bdf8', '#8b5cf6'], // Sky Blue for Temp, Violet for Smoke
+            plotOptions: { 
+                bar: { 
+                    borderRadius: 2, 
+                    columnWidth: '55%',
+                    dataLabels: { position: 'top' } 
+                } 
+            },
+            dataLabels: { 
+                enabled: false 
+            },
+            stroke: {
+                show: true,
+                width: 2,
+                colors: ['transparent']
+            },
             xaxis: {
-                categories: @json($baselineCategories),
-                axisBorder: { show: false }, axisTicks: { show: false },
+                categories: @json($chartLabels),
+                axisBorder: { show: false }, 
+                axisTicks: { show: false },
                 labels: { style: { colors: '#9ca3af', fontSize: '10px' } }
             },
             yaxis: { show: false },
-            grid: { show: false }
+            grid: { show: false },
+            tooltip: {
+                shared: true,
+                intersect: false,
+                y: {
+                    formatter: function (val, { seriesIndex }) {
+                        return seriesIndex === 0 ? val + " °C" : val + " %";
+                    }
+                }
+            }
         };
         new ApexCharts(document.querySelector("#analyticsBarChart"), barOptions).render();
     });

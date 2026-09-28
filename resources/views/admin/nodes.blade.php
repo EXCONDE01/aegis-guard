@@ -1,5 +1,5 @@
 @extends('layouts.admin')
-@section('page_title', 'Hardware Nodes | Aegis-Guard')
+@section('page_title', 'Hardware Nodes')
 @section('header_title', 'Hardware Infrastructure')
 @section('header_subtitle', 'Manage physical ESP32 endpoints, monitor network health, and provision zones.')
 

@@ -1,5 +1,5 @@
 @extends('layouts.admin')
-@section('page_title', 'System Settings | FireNet')
+@section('page_title', 'System Settings')
 @section('header_title', 'Global System Configuration')
 @section('header_subtitle', 'Manage core institution parameters, telemetry API gateways, and emergency override policies.')
 

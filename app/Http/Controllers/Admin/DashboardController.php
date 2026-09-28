@@ -41,9 +41,35 @@ class DashboardController extends Controller
     
             return $node;
         });
-        
-        // 3. Pass both nodes and the polling interval to the view
-        return view('dashboard', compact('nodes', 'pollingInterval'));
+
+        // 3. Calculate 7-Day Baseline Averages (Temperature & Smoke)
+        $chartLabels = [];
+        $tempData = [];
+        $smokeData = [];
+
+        // Loop backwards from 6 days ago up to today
+        for ($i = 6; $i >= 0; $i--) {
+            $targetDate = now()->subDays($i)->format('Y-m-d');
+            $dayName = now()->subDays($i)->format('D'); // e.g., 'Mon', 'Tue'
+            
+            // Query the database for the averages of that specific date
+            $dailyStats = \App\Models\NodeLog::whereDate('created_at', $targetDate)
+                ->select(
+                    DB::raw('AVG(temperature) as avg_temp'),
+                    DB::raw('AVG(smoke_level) as avg_smoke')
+                )
+                ->first();
+
+            $chartLabels[] = $dayName;
+            $tempData[] = $dailyStats && $dailyStats->avg_temp ? round($dailyStats->avg_temp, 1) : 0;
+            
+            // Convert raw smoke (0-4095) to percentage for the chart
+            $rawSmoke = $dailyStats && $dailyStats->avg_smoke ? $dailyStats->avg_smoke : 0;
+            $smokeData[] = round(min(($rawSmoke / 4095) * 100, 100), 1);
+        }
+
+        // 4. Pass all data to the dashboard view
+        return view('dashboard', compact('nodes', 'pollingInterval', 'chartLabels', 'tempData', 'smokeData'));
     }
 
     public function history(\Illuminate\Http\Request $request)
@@ -243,7 +269,20 @@ class DashboardController extends Controller
     public function nodes()
     {
         abort_if(auth()->user()->role !== 'admin', 403, 'Unauthorized Access: IT Operations Only.');
-        $nodes = Node::orderByRaw("location_name = 'New Unassigned Node' DESC")->latest()->get();
+        
+        $nodes = Node::orderByRaw("location_name = 'New Unassigned Node' DESC")
+            ->latest()
+            ->get()
+            ->map(function ($node) {
+                // Apply the same 15-second timeout check used on the live dashboard
+                $isOffline = $node->updated_at->diffInSeconds(now()) > 15;
+                if ($isOffline) {
+                    $node->status = 'OFFLINE';
+                    $node->latency = null;
+                }
+                return $node;
+            });
+
         return view('admin.nodes', compact('nodes'));
     }
 
