@@ -147,7 +147,6 @@
         </div>
 
         <!-- INNER SCROLLING TELEMETRY GRAPHS -->
-        <!-- Fixed height computation (h-[calc...]) so it perfectly clears the top metrics and footer -->
         <div id="telemetry-container" class="grid grid-cols-1 xl:grid-cols-2 gap-6 h-[calc(100vh-25rem)] overflow-y-auto pr-2 pb-6 noc-scrollbar">
             @foreach($nodes as $node)
                 @php 
@@ -276,7 +275,6 @@
     <!-- ========================================== -->
     <!-- RIGHT COLUMN: ANALYTICS & INFRA            -->
     <!-- ========================================== -->
-    <!-- Fixed height computation (h-[calc...]) so it clears the top nav and footer -->
     <div class="xl:col-span-4 space-y-6 h-[calc(100vh-12rem)] overflow-y-auto noc-scrollbar pr-2 pb-6">
 
         <div class="flex items-center gap-2 border-b border-gray-200 pb-2">
@@ -284,7 +282,6 @@
             <h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest">System Analytics</h3>
         </div>
 
-        <!-- Infrastructure Compact Stats -->
         <div id="db-payload-card" class="grid grid-cols-2 gap-4">
             <div class="bg-slate-900 rounded-xl p-4 border border-slate-800 shadow-sm">
                 <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">DB Payload</p>
@@ -298,7 +295,6 @@
             </div>
         </div>
 
-        <!-- Host Server Diagnostics (Live Aegis-Portal LXC Sync) -->
         <div id="host-diagnostics-card" class="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
             <div class="flex justify-between items-center mb-4">
                 <h4 class="text-xs font-bold text-gray-800 uppercase tracking-wider">Host Environment</h4>
@@ -333,13 +329,11 @@
             </div>
         </div>
 
-        <!-- Hazard Frequency Chart -->
         <div class="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
             <h4 class="text-xs font-bold text-gray-800 uppercase tracking-wider mb-2">30-Day Hazard Frequency</h4>
             <div id="analyticsPieChart" class="h-48 w-full mt-2"></div>
         </div>
 
-        <!-- 7-Day Baseline Trend -->
         <div class="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
             <div class="flex justify-between items-center mb-2">
                 <h4 class="text-xs font-bold text-gray-800 uppercase tracking-wider">7-Day Baseline</h4>
@@ -373,25 +367,28 @@
         <input type="text" x-model="confirmText" :disabled="isDispatching" class="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-1 focus:ring-red-500 focus:border-red-500 block p-3 mb-6 font-telemetry tracking-widest text-center uppercase" placeholder="...">
         <div class="flex justify-end gap-3">
             <button @click="showEmergencyModal = false" :disabled="isDispatching" class="px-5 py-2.5 text-sm font-medium text-gray-500 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 rounded transition-colors disabled:opacity-50">Cancel</button>
-            <form method="POST" action="{{ route('admin.dispatch') }}" class="m-0" @submit="isDispatching = true">
-                @csrf
-                <button type="submit" :disabled="confirmText.trim().toUpperCase() !== 'DISPATCH' || isDispatching" :class="{'opacity-50 cursor-not-allowed': confirmText.trim().toUpperCase() !== 'DISPATCH', 'hover:bg-red-700': confirmText.trim().toUpperCase() === 'DISPATCH'}" class="bg-red-600 text-white px-6 py-2.5 rounded-lg text-sm font-bold tracking-wider transition-all min-w-[120px] flex justify-center uppercase shadow">
-                    <span x-show="!isDispatching">Authorize</span>
-                    <span x-show="isDispatching" style="display: none;" class="flex items-center gap-2"><svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Sending</span>
-                </button>
-            </form>
+            <button type="button" id="authorizeOverrideBtn" :disabled="confirmText.trim().toUpperCase() !== 'DISPATCH' || isDispatching" :class="{'opacity-50 cursor-not-allowed': confirmText.trim().toUpperCase() !== 'DISPATCH', 'hover:bg-red-700': confirmText.trim().toUpperCase() === 'DISPATCH'}" class="bg-red-600 text-white px-6 py-2.5 rounded-lg text-sm font-bold tracking-wider transition-all min-w-[120px] flex justify-center uppercase shadow m-0">
+                <span x-show="!isDispatching">Authorize</span>
+                <span x-show="isDispatching" style="display: none;" class="flex items-center gap-2">
+                    <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Sending
+                </span>
+            </button>
         </div>
     </div>
 </div>
 @endsection
 
 @section('scripts')
+<!-- Restored CDN Link -->
 <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+
+<!-- Keep Vite for your CSS layout -->
+@vite(['resources/css/app.css'])
+
 <script>
     document.addEventListener("DOMContentLoaded", function() {
-        // 1. Dynamic 30-Day Hazard Frequency Chart
         var pieOptions = {
-            series: @json($hazardChartData),
+            series: {!! json_encode($hazardChartData ?? [1, 0, 0]) !!},
             labels: ['Safe States', 'Warnings', 'Critical'],
             chart: { type: 'donut', height: 220, fontFamily: 'Inter, sans-serif' },
             colors: ['#10b981', '#f59e0b', '#ef4444'],
@@ -402,37 +399,26 @@
         };
         new ApexCharts(document.querySelector("#analyticsPieChart"), pieOptions).render();
 
-        // 2. Dynamic 7-Day Baseline Trend Chart
         var barOptions = {
             series: [
-                { name: 'Avg Temp °C', data: @json($tempData) },
-                { name: 'Avg Smoke %', data: @json($smokeData) }
+                { name: 'Avg Temp °C', data: {!! json_encode($tempData ?? [28, 28, 28, 28, 28, 28, 28]) !!} },
+                { name: 'Avg Smoke %', data: {!! json_encode($smokeData ?? [35, 35, 35, 35, 35, 35, 35]) !!} }
             ],
             chart: { 
                 type: 'bar', 
                 height: 180, 
                 toolbar: { show: false }, 
                 fontFamily: 'Inter, sans-serif',
-                stacked: false // Set to true if you prefer the bars stacked on top of each other
+                stacked: false
             },
-            colors: ['#38bdf8', '#8b5cf6'], // Sky Blue for Temp, Violet for Smoke
+            colors: ['#38bdf8', '#8b5cf6'],
             plotOptions: { 
-                bar: { 
-                    borderRadius: 2, 
-                    columnWidth: '55%',
-                    dataLabels: { position: 'top' } 
-                } 
+                bar: { borderRadius: 2, columnWidth: '55%', dataLabels: { position: 'top' } } 
             },
-            dataLabels: { 
-                enabled: false 
-            },
-            stroke: {
-                show: true,
-                width: 2,
-                colors: ['transparent']
-            },
+            dataLabels: { enabled: false },
+            stroke: { show: true, width: 2, colors: ['transparent'] },
             xaxis: {
-                categories: @json($chartLabels),
+                categories: {!! json_encode($chartLabels ?? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']) !!},
                 axisBorder: { show: false }, 
                 axisTicks: { show: false },
                 labels: { style: { colors: '#9ca3af', fontSize: '10px' } }
@@ -472,7 +458,7 @@
             data: @json($tempHistory),
             chart: new ApexCharts(document.querySelector("#chart-temp-{{ $node->id }}"), {
                 series: [{ name: 'Temperature', data: @json($tempHistory) }],
-                chart: { type: 'area', height: '100%', sparkline: { enabled: true }, animations: { enabled: true, easing: 'linear', dynamicAnimation: { speed: 800 } } },
+                chart: { type: 'area', height: 80, sparkline: { enabled: true }, animations: { enabled: true, easing: 'linear', dynamicAnimation: { speed: 800 } } },
                 stroke: { curve: 'smooth', width: 2 },
                 colors: ['#0284c7'], 
                 fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.25, opacityTo: 0, stops: [0, 100] } },
@@ -491,7 +477,7 @@
             data: @json($smokeHistory),
             chart: new ApexCharts(document.querySelector("#chart-smoke-{{ $node->id }}"), {
                 series: [{ name: 'Smoke %', data: @json($smokeHistory) }],
-                chart: { type: 'area', height: '100%', sparkline: { enabled: true }, animations: { enabled: true, easing: 'linear', dynamicAnimation: { speed: 800 } } },
+                chart: { type: 'area', height: 80, sparkline: { enabled: true }, animations: { enabled: true, easing: 'linear', dynamicAnimation: { speed: 800 } } },
                 stroke: { curve: 'smooth', width: 2 },
                 colors: ['#7c3aed'],
                 fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.25, opacityTo: 0, stops: [0, 100] } },
@@ -589,5 +575,47 @@
             })
             .catch(error => console.error('Telemetry Sync Error:', error));
     }, {{ $pollingInterval ?? 5000 }});
+
+    document.getElementById('authorizeOverrideBtn').addEventListener('click', function(e) {
+        e.preventDefault();
+        
+        // Let Alpine.js handle the UI state swap to "Sending"
+        const alpineComponent = document.querySelector('[x-show="showEmergencyModal"]').__x;
+        if (alpineComponent) alpineComponent.$data.isDispatching = true;
+        
+        const btn = this;
+        btn.disabled = true;
+
+        fetch('{{ route('admin.dispatch') }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({ action: 'trigger_override' })
+        })
+        .then(response => response.json().then(data => ({status: response.status, body: data})))
+        .then(res => {
+            // Restore Alpine UI State
+            if (alpineComponent) {
+                alpineComponent.$data.isDispatching = false;
+                alpineComponent.$data.showEmergencyModal = false; // Close modal automatically
+            }
+            btn.disabled = false;
+
+            if (res.status === 503 || !res.body.success) {
+                alert("⚠️ DISPATCH FAILED\n\n" + res.body.message);
+            } else {
+                alert("✅ SUCCESS\n\n" + res.body.message);
+            }
+        })
+        .catch(error => {
+            // Handle local network loss
+            if (alpineComponent) alpineComponent.$data.isDispatching = false;
+            btn.disabled = false;
+            alert("⚠️ NETWORK ERROR\n\nYour browser cannot reach the local server.");
+        });
+    });
 </script>
 @endsection

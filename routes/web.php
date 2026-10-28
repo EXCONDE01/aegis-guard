@@ -2,10 +2,24 @@
 
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\TwoFactorController;
 use Illuminate\Support\Facades\Route;
 
-// Secured Administrator Routes
-Route::middleware('auth')->group(function () {
+// ==========================================
+// 2FA VERIFICATION ROUTES (Requires Login Only)
+// ==========================================
+Route::middleware(['auth'])->group(function () {
+    Route::get('/2fa/setup', [TwoFactorController::class, 'setup'])->name('2fa.setup');
+    Route::get('/2fa/verify', function () { 
+        return view('auth.2fa_verify'); 
+    })->name('2fa.verify');
+    Route::post('/2fa/verify', [TwoFactorController::class, 'verify'])->name('2fa.check');
+});
+
+// ==========================================
+// SECURED ADMINISTRATOR ROUTES (Requires Login + 2FA)
+// ==========================================
+Route::middleware(['auth', '2fa'])->group(function () {
     
     // Main Dashboard
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');

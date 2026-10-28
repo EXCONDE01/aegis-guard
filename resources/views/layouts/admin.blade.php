@@ -11,23 +11,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                        telemetry: ['JetBrains Mono', 'monospace'],
-                    }
-                }
-            }
-        }
-    </script>
-
-    <!-- Alpine.js for Modals and Dropdowns -->
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <!-- Vite CSS & JS Bundling -->
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="bg-gray-50 text-gray-900 font-sans antialiased min-h-screen flex flex-col" x-data="{ userMenuOpen: false, showEmergencyModal: false, confirmText: '', isDispatching: false }">
 
@@ -139,7 +124,7 @@
     </nav>
 
     <!-- MAIN WORKSPACE -->
-    <main class="flex-1 w-full max-w-[1920px] mx-auto p-4 sm:p-6 lg:p-8 flex flex-col">
+    <main class="flex-1 w-full max-w-[1920px] mx-auto p-4 sm:p-6 lg:px-8 flex flex-col">
         
         <!-- GLOBAL FLASH MESSAGES -->
         @if (session('success'))

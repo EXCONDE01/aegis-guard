@@ -20,7 +20,7 @@
     <div class="max-w-4xl w-full bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden flex flex-col md:flex-row z-10">
         
         <!-- Left Side: Branding & Context -->
-        <div class="w-full md:w-5/12 bg-gradient-to-br from-sky-700 to-sky-900 p-10 flex flex-col justify-between text-white relative overflow-hidden">
+        <div class="hidden md:flex md:w-5/12 bg-gradient-to-br from-sky-700 to-sky-900 p-10 flex-col justify-between text-white relative overflow-hidden">
             <!-- Decorative Tech Grid -->
             <div class="absolute inset-0 opacity-10 bg-[linear-gradient(#fff_1px,transparent_1px),linear-gradient(90deg,#fff_1px,transparent_1px)] bg-[size:20px_20px]"></div>
             

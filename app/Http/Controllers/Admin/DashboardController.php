@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Http\Client\ConnectionException; // Added Exception Import
 use Carbon\Carbon;
 
 class DashboardController extends Controller
@@ -158,48 +159,74 @@ class DashboardController extends Controller
 
     public function dispatchAlert(\Illuminate\Http\Request $request)
     {
-        // --- NEW: TRIGGER THE ESP32 HARDWARE ALARM ---
-        // This sets the global override flag to 'true' for 5 minutes.
-        // The ESP32 will pick this up on its next polling cycle and sound the buzzer.
+        // 1. Verify Server Internet Access (Ping Pushover API)
+        $connected = @fsockopen("api.pushover.net", 443, $errno, $errstr, 3);
+        
+        if (!$connected) {
+            return response()->json([
+                'success' => false,
+                'message' => 'System Offline: The local server has no internet access to dispatch mobile notifications.'
+            ], 503);
+        }
+        fclose($connected);
+
+        // 2. TRIGGER THE ESP32 HARDWARE ALARM
         Cache::put('manual_override', true, now()->addMinutes(5));
 
         $contacts = \App\Models\Contact::where('is_active', true)->get();
 
         if ($contacts->isEmpty()) {
-            return redirect()->back()->with('error', 'BROADCAST ABORTED: No active personnel registered in the directory.');
+            return response()->json([
+                'success' => false,
+                'message' => 'BROADCAST ABORTED: No active personnel registered in the directory.'
+            ], 400);
         }
 
         $successCount = 0;
         $errorMessage = null;
 
-        foreach ($contacts as $contact) {
-            $key = $contact->pushover_key ?? $contact->user_key;
-            if (!$key) continue;
+        // 3. Execute Pushover API Logic inside try-catch to handle timeouts gracefully
+        try {
+            foreach ($contacts as $contact) {
+                $key = $contact->pushover_key ?? $contact->user_key;
+                if (!$key) continue;
 
-            $response = Http::asForm()->post('https://api.pushover.net/1/messages.json', [
-                'token' => env('PUSHOVER_APP_TOKEN'), 
-                'user' => $key,
-                'message' => "🚨 MANUAL OVERRIDE AUTHORIZED 🚨\nEvacuate facility immediately. This is not a drill.",
-                'title' => 'Aegis-Guard (CRITICAL)',
-                'sound' => 'UDRRMC_SIREN',
-                'priority' => 2,
-                'retry' => 30,
-                'expire' => 120
-            ]);
-            
-            if ($response->successful()) {
-                $successCount++;
-            } else {
-                $errorData = $response->json();
-                $errorMessage = $errorData['errors'][0] ?? 'Unknown API Error';
+                $response = Http::timeout(10)->asForm()->post('https://api.pushover.net/1/messages.json', [
+                    'token' => env('PUSHOVER_APP_TOKEN'), 
+                    'user' => $key,
+                    'message' => "🚨 MANUAL OVERRIDE AUTHORIZED 🚨\nEvacuate facility immediately. This is not a drill.",
+                    'title' => 'Aegis-Guard (CRITICAL)',
+                    'sound' => 'UDRRMC_SIREN',
+                    'priority' => 2,
+                    'retry' => 30,
+                    'expire' => 120
+                ]);
+                
+                if ($response->successful()) {
+                    $successCount++;
+                } else {
+                    $errorData = $response->json();
+                    $errorMessage = $errorData['errors'][0] ?? 'Unknown API Error';
+                }
             }
+        } catch (ConnectionException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'System Offline: The server timed out and cannot reach the Pushover API. Check Proxmox container network settings.'
+            ], 503);
         }
 
         if ($successCount === 0) {
-            return redirect()->back()->with('error', "PUSHOVER API FAILED: " . ($errorMessage ?? "Check your .env PUSHOVER_APP_TOKEN."));
+            return response()->json([
+                'success' => false,
+                'message' => "PUSHOVER API FAILED: " . ($errorMessage ?? "Check your .env PUSHOVER_APP_TOKEN.")
+            ], 500);
         }
 
-        return redirect()->back()->with('emergency_success', "PROTOCOL OVERRIDE SUCCESS: Emergency broadcast dispatched to {$successCount} active responders. Physical alarms activated.");
+        return response()->json([
+            'success' => true,
+            'message' => "PROTOCOL OVERRIDE SUCCESS: Emergency broadcast dispatched to {$successCount} active responders. Physical alarms activated."
+        ]);
     }
 
     public function contacts()

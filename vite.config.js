@@ -8,4 +8,16 @@ export default defineConfig({
             refresh: true,
         }),
     ],
+    build: {
+        chunkSizeWarningLimit: 1200, // Raises the warning threshold to 1.2 MB
+        rollupOptions: {
+            output: {
+                manualChunks(id) {
+                    if (id.includes('node_modules')) {
+                        return 'vendor';
+                    }
+                },
+            },
+        },
+    },
 });
