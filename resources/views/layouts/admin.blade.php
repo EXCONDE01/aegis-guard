@@ -175,7 +175,7 @@
     <!-- FOOTER -->
     <footer class="bg-white border-t border-gray-200 mt-auto shrink-0">
         <div class="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row justify-between items-center gap-2">
-            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Aegis-Guard © {{ date('Y') }} Laguna State Polytechnic University</p>
+            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">FireNet © {{ date('Y') }} Laguna State Polytechnic University</p>
             <p class="text-[10px] font-telemetry text-gray-400">v1.2.0-STABLE</p>
         </div>
     </footer>

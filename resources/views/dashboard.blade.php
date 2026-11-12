@@ -38,7 +38,6 @@
 
     // Fetch Live Linux Container Metrics
     if (stristr(PHP_OS, 'linux')) {
-        // 1. Get CPU Cores & Usage
         $cores = (int) @shell_exec('nproc');
         if ($cores > 0) $cpuCores = $cores;
         
@@ -47,7 +46,6 @@
             $liveCpuUsage = min(100, ($load[0] / $cpuCores) * 100);
         }
 
-        // 2. Get RAM Usage from /proc/meminfo
         $meminfo = @file_get_contents('/proc/meminfo');
         if ($meminfo) {
             preg_match_all('/^(\w+):\s+(\d+)\s+kB/m', $meminfo, $matches);
@@ -66,7 +64,6 @@
             $totalRamText = $totalRamMiB >= 1024 ? number_format($totalRamMiB / 1024, 2) . ' GiB' : number_format($totalRamMiB, 2) . ' MiB';
         }
     } else {
-        // Windows fallback for local XAMPP testing so charts aren't completely dead
         $liveCpuUsage = rand(1, 5) + (rand(0, 99) / 100);
         $ramPercent = rand(32, 38) + (rand(0, 99) / 100);
         $usedRamText = number_format(2048 * ($ramPercent/100), 2) . ' MiB';
@@ -93,21 +90,16 @@
     $hazardChartData = [$safe30, $warn30, $crit30];
 @endphp
 
-<!-- Custom NOC Scrollbar Style -->
 <style>
-    /* Sleek custom scrollbars for the inner columns */
     .noc-scrollbar::-webkit-scrollbar { width: 6px; }
     .noc-scrollbar::-webkit-scrollbar-track { background: transparent; }
     .noc-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
     .noc-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 </style>
 
-<!-- MAIN NOC SPLIT GRID -->
 <div class="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start pb-4">
 
-    <!-- ========================================== -->
-    <!-- LEFT COLUMN: LIVE TELEMETRY (8 Columns)    -->
-    <!-- ========================================== -->
+    <!-- LEFT COLUMN: LIVE TELEMETRY (8 Columns) -->
     <div class="xl:col-span-8 space-y-6">
         
         <!-- CRISP WHITE SUMMARY METRICS -->
@@ -146,128 +138,159 @@
             </marquee>
         </div>
 
+        <!-- MATRIX HEADER & CONTAINER EXPAND BUTTON -->
+        <div class="flex justify-between items-end mb-3 mt-2 px-1" id="expand-btn-container">
+            <h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+                Live Sensor Matrix
+            </h3>
+            <button type="button" id="expand-container-btn" onclick="toggleContainerFullscreen()" class="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest bg-white hover:bg-gray-50 text-gray-600 rounded border border-gray-200 transition-colors shadow-sm">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg> Expand Grid
+            </button>
+        </div>
+
+        <div id="telemetry-wrapper-placeholder" class="hidden"></div>
+
         <!-- INNER SCROLLING TELEMETRY GRAPHS -->
-        <div id="telemetry-container" class="grid grid-cols-1 xl:grid-cols-2 gap-6 h-[calc(100vh-25rem)] overflow-y-auto pr-2 pb-6 noc-scrollbar">
-            @foreach($nodes as $node)
-                @php 
-                    $latestLog = $node->logs->first(); 
-                    $previousLog = $node->logs->skip(1)->first(); 
-                    
-                    $isOffline = $node->status == 'OFFLINE';
-                    $isCritical = $node->status == 'CRITICAL';
-                    $isWarning = $node->status == 'WARNING';
-                    
-                    $tempVal = $latestLog->temperature ?? 0;
-                    $smokeRaw = $latestLog->smoke_level ?? 0;
-                    $smokePercentage = min(($smokeRaw / 4095) * 100, 100);
-                    
-                    $rssi = $latestLog->wifi_rssi ?? 0;
-                    $rssiQuality = $rssi > -60 ? 'text-emerald-500' : ($rssi > -80 ? 'text-amber-500' : 'text-red-500');
-                    $uptime = $latestLog->uptime_seconds ?? 0;
-                    $uptimeFormatted = gmdate("H:i:s", $uptime);
-                    $isCalibrating = $latestLog->is_calibrating ?? false;
-
-                    $tempTrend = 'stable';
-                    if ($previousLog) {
-                        if ($tempVal > $previousLog->temperature) $tempTrend = 'rising';
-                        if ($tempVal < $previousLog->temperature) $tempTrend = 'falling';
-                    }
-
-                    $dailyMinTemp = \App\Models\NodeLog::where('node_id', $node->id)->whereDate('created_at', \Carbon\Carbon::today())->min('temperature') ?? $tempVal;
-                    $dailyMaxTemp = \App\Models\NodeLog::where('node_id', $node->id)->whereDate('created_at', \Carbon\Carbon::today())->max('temperature') ?? $tempVal;
-
-                    $cardBorder = $isCritical ? 'border-red-400 shadow-[0_0_20px_rgba(239,68,68,0.15)] bg-red-50/10' : ($isWarning ? 'border-amber-300 bg-amber-50/10' : 'border-gray-200 bg-white');
-                    $statusBadge = $isCritical ? 'bg-red-100 text-red-700 border border-red-200' : ($isWarning ? 'bg-amber-100 text-amber-700 border border-amber-200' : ($isOffline ? 'bg-gray-100 text-gray-500 border border-gray-200' : 'bg-emerald-50 text-emerald-600 border border-emerald-200'));
-                @endphp
-
-                <div id="node-card-{{ $node->id }}" class="border {{ $cardBorder }} rounded-xl p-6 relative overflow-hidden transition-all duration-500 shadow-sm h-fit">
-                    @if($isCritical)
-                        <div class="absolute top-0 left-0 w-full h-1.5 bg-red-500 animate-pulse"></div>
-                    @endif
-
-                    <div id="node-data-{{ $node->id }}" class="hidden" data-temp="{{ $tempVal }}" data-smoke="{{ $smokePercentage }}" data-smokeraw="{{ $smokeRaw }}"></div>
-
-                    <div id="node-header-{{ $node->id }}" class="flex justify-between items-start mb-6 relative z-10">
-                        <div>
-                            <div class="flex items-center gap-2 mb-1">
-                                <h2 class="text-xl font-bold text-gray-900 tracking-tight">{{ $node->location_name }}</h2>
-                                @if($isCalibrating)
-                                    <span class="px-2 py-0.5 rounded text-[9px] font-bold bg-sky-100 text-sky-700 border border-sky-200 animate-pulse">WARMING UP</span>
-                                @endif
-                            </div>
-                            <p class="text-xs text-gray-500 font-medium mb-1.5">Zone: <span class="text-gray-800">{{ $node->specific_area }}</span> | ID: <span class="text-gray-500 font-mono">{{ $node->hardware_id }}</span></p>
-                            
-                            <div class="flex items-center gap-2 mt-2 text-[9px] font-mono font-bold tracking-wider">
-                                <span class="bg-gray-100 text-gray-500 px-2 py-1 rounded-md flex items-center gap-1.5" title="Signal Strength">
-                                    <svg class="w-3 h-3 {{ $rssiQuality }}" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3C7.05 3 2.55 4.8 0 7.8L12 21 24 7.8C21.45 4.8 16.95 3 12 3zm0 2.2c3.9 0 7.6 1.3 10.4 3.7L12 19 1.6 8.9C4.4 6.5 8.1 5.2 12 5.2z"/></svg>
-                                    {{ $rssi }} dBm
-                                </span>
-                                <span class="bg-gray-100 text-gray-500 px-2 py-1 rounded-md" title="Node Uptime">
-                                    UP: {{ $uptimeFormatted }}
-                                </span>
-                            </div>
-                        </div>
+        <div id="telemetry-wrapper" class="relative transition-all duration-700 ease-out origin-center bg-transparent">
+            <!-- Hidden Title for Fullscreen Grid -->
+            <h2 id="fullscreen-title" class="hidden text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+                <svg class="w-5 h-5 text-red-600 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                Facility Sensor Matrix - Live Feed
+            </h2>
+            
+            <div id="telemetry-container" class="grid grid-cols-1 xl:grid-cols-2 gap-6 h-[calc(100vh-25rem)] overflow-y-auto pr-2 pb-6 noc-scrollbar transition-all duration-500">
+                @foreach($nodes as $node)
+                    @php 
+                        $latestLog = $node->logs->first(); 
+                        $previousLog = $node->logs->skip(1)->first(); 
                         
-                        <div class="flex flex-col items-end gap-2">
-                            <span class="px-2.5 py-1 rounded flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest {{ $statusBadge }}">
-                                @if(!$isOffline)
-                                    <span class="relative flex h-2 w-2">
-                                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 {{ $isCritical ? 'bg-red-400' : ($isWarning ? 'bg-amber-400' : 'bg-emerald-400') }}"></span>
-                                        <span class="relative inline-flex rounded-full h-2 w-2 {{ $isCritical ? 'bg-red-600' : ($isWarning ? 'bg-amber-500' : 'bg-emerald-500') }}"></span>
-                                    </span>
-                                @else
-                                    <span class="w-2 h-2 rounded-full bg-gray-400"></span>
-                                @endif
-                                {{ $node->status }}
-                            </span>
-                            <a href="{{ route('admin.nodes.export', $node->id) }}" class="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest bg-gray-100 hover:bg-gray-200 text-gray-600 rounded border border-gray-200 transition-colors" title="Download CSV Log">
-                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg> CSV
-                            </a>
-                        </div>
-                    </div>
+                        $isOffline = $node->status == 'OFFLINE';
+                        $isCritical = $node->status == 'CRITICAL';
+                        $isWarning = $node->status == 'WARNING';
+                        
+                        $tempVal = $latestLog->temperature ?? 0;
+                        $smokeRaw = $latestLog->smoke_level ?? 0;
+                        $smokePercentage = min(($smokeRaw / 4095) * 100, 100);
+                        
+                        $rssi = $latestLog->wifi_rssi ?? 0;
+                        $rssiQuality = $rssi > -60 ? 'text-emerald-500' : ($rssi > -80 ? 'text-amber-500' : 'text-red-500');
+                        $uptime = $latestLog->uptime_seconds ?? 0;
+                        $uptimeFormatted = gmdate("H:i:s", $uptime);
+                        $isCalibrating = $latestLog->is_calibrating ?? false;
 
-                    <div class="space-y-4">
-                        <div class="bg-gray-50 rounded border border-gray-200 overflow-hidden">
-                            <div id="temp-header-{{ $node->id }}" class="px-4 pt-4 flex justify-between items-start">
-                                <div>
-                                    <p class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Ambient Temp</p>
-                                    <p class="text-[9px] text-gray-400 font-telemetry mt-1.5">24H RANGE: {{ number_format($dailyMinTemp, 1) }}°C - {{ number_format($dailyMaxTemp, 1) }}°C</p>
-                                </div>
-                                <div class="flex items-center gap-1.5">
-                                    <p class="text-2xl font-black font-telemetry text-sky-600">
-                                        <span id="temp-val-{{ $node->id }}">{{ number_format($tempVal, 1) }}</span><span class="text-sm ml-1 text-sky-500">°C</span>
-                                    </p>
-                                    @if($tempTrend == 'rising')
-                                        <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
-                                    @elseif($tempTrend == 'falling')
-                                        <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0v-8m0 8l-8-8-4 4-6-6" /></svg>
-                                    @else
-                                        <svg class="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14" /></svg>
+                        $tempTrend = 'stable';
+                        if ($previousLog) {
+                            if ($tempVal > $previousLog->temperature) $tempTrend = 'rising';
+                            if ($tempVal < $previousLog->temperature) $tempTrend = 'falling';
+                        }
+
+                        $dailyMinTemp = \App\Models\NodeLog::where('node_id', $node->id)->whereDate('created_at', \Carbon\Carbon::today())->min('temperature') ?? $tempVal;
+                        $dailyMaxTemp = \App\Models\NodeLog::where('node_id', $node->id)->whereDate('created_at', \Carbon\Carbon::today())->max('temperature') ?? $tempVal;
+
+                        $cardBorder = $isCritical ? 'border-red-400 shadow-[0_0_20px_rgba(239,68,68,0.15)] bg-red-50/10' : ($isWarning ? 'border-amber-300 bg-amber-50/10' : 'border-gray-200 bg-white');
+                        $statusBadge = $isCritical ? 'bg-red-100 text-red-700 border border-red-200' : ($isWarning ? 'bg-amber-100 text-amber-700 border border-amber-200' : ($isOffline ? 'bg-gray-100 text-gray-500 border border-gray-200' : 'bg-emerald-50 text-emerald-600 border border-emerald-200'));
+                    @endphp
+
+                    <!-- Placeholder for returning the card to its spot in the grid -->
+                    <div id="node-placeholder-{{ $node->id }}" class="hidden"></div>
+
+                    <div id="node-card-{{ $node->id }}" class="border {{ $cardBorder }} rounded-xl p-6 relative overflow-hidden transition-all duration-500 shadow-sm h-fit bg-white">
+                        @if($isCritical)
+                            <div class="absolute top-0 left-0 w-full h-1.5 bg-red-500 animate-pulse"></div>
+                        @endif
+
+                        <div id="node-data-{{ $node->id }}" class="hidden" data-temp="{{ $tempVal }}" data-smoke="{{ $smokePercentage }}" data-smokeraw="{{ $smokeRaw }}"></div>
+
+                        <div id="node-header-{{ $node->id }}" class="flex justify-between items-start mb-6 relative z-10">
+                            <div>
+                                <div class="flex items-center gap-2 mb-1">
+                                    <h2 class="text-xl font-bold text-gray-900 tracking-tight">{{ $node->location_name }}</h2>
+                                    @if($isCalibrating)
+                                        <span class="px-2 py-0.5 rounded text-[9px] font-bold bg-sky-100 text-sky-700 border border-sky-200 animate-pulse">WARMING UP</span>
                                     @endif
                                 </div>
+                                <p class="text-xs text-gray-500 font-medium mb-1.5">Zone: <span class="text-gray-800">{{ $node->specific_area }}</span> | ID: <span class="text-gray-500 font-mono">{{ $node->hardware_id }}</span></p>
+                                
+                                <div class="flex items-center gap-2 mt-2 text-[9px] font-mono font-bold tracking-wider">
+                                    <span class="bg-gray-100 text-gray-500 px-2 py-1 rounded-md flex items-center gap-1.5" title="Signal Strength">
+                                        <svg class="w-3 h-3 {{ $rssiQuality }}" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3C7.05 3 2.55 4.8 0 7.8L12 21 24 7.8C21.45 4.8 16.95 3 12 3zm0 2.2c3.9 0 7.6 1.3 10.4 3.7L12 19 1.6 8.9C4.4 6.5 8.1 5.2 12 5.2z"/></svg>
+                                        {{ $rssi }} dBm
+                                    </span>
+                                    <span class="bg-gray-100 text-gray-500 px-2 py-1 rounded-md" title="Node Uptime">
+                                        UP: {{ $uptimeFormatted }}
+                                    </span>
+                                </div>
                             </div>
-                            <div class="h-28 pb-2 w-full mt-2">
-                                <div id="chart-temp-{{ $node->id }}" class="w-full h-full"></div>
+                            
+                            <div class="flex flex-col items-end gap-2">
+                                <span class="px-2.5 py-1 rounded flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest {{ $statusBadge }}">
+                                    @if(!$isOffline)
+                                        <span class="relative flex h-2 w-2">
+                                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 {{ $isCritical ? 'bg-red-400' : ($isWarning ? 'bg-amber-400' : 'bg-emerald-400') }}"></span>
+                                            <span class="relative inline-flex rounded-full h-2 w-2 {{ $isCritical ? 'bg-red-600' : ($isWarning ? 'bg-amber-500' : 'bg-emerald-500') }}"></span>
+                                        </span>
+                                    @else
+                                        <span class="w-2 h-2 rounded-full bg-gray-400"></span>
+                                    @endif
+                                    {{ $node->status }}
+                                </span>
+                                <div class="flex items-center gap-2">
+                                    <!-- INDIVIDUAL CARD EXPAND BUTTON -->
+                                    <button type="button" id="expand-btn-{{ $node->id }}" onclick="toggleCardFullscreen('{{ $node->id }}')" class="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest bg-gray-100 hover:bg-gray-200 text-gray-600 rounded border border-gray-200 transition-colors" title="Toggle Fullscreen">
+                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg> Expand
+                                    </button>
+                                    <a href="{{ route('admin.nodes.export', $node->id) }}" class="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest bg-gray-100 hover:bg-gray-200 text-gray-600 rounded border border-gray-200 transition-colors" title="Download CSV Log">
+                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg> CSV
+                                    </a>
+                                </div>
                             </div>
                         </div>
 
-                        <div class="bg-gray-50 rounded border border-gray-200 overflow-hidden">
-                            <div class="px-4 pt-4 flex justify-between items-end">
-                                <div>
-                                    <p class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Particulate/Gas</p>
-                                    <p class="text-[9px] text-gray-400 font-telemetry mt-0.5">RAW: <span id="smoke-raw-{{ $node->id }}">{{ $smokeRaw }}</span></p>
+                        <!-- Inner layout wrapper updated to switch to grid dynamically -->
+                        <div id="chart-layout-wrapper-{{ $node->id }}" class="space-y-4 relative z-10 bg-white h-full transition-all duration-300">
+                            <div class="bg-gray-50 rounded border border-gray-200 overflow-hidden">
+                                <div id="temp-header-{{ $node->id }}" class="px-4 pt-4 flex justify-between items-start">
+                                    <div>
+                                        <p class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Ambient Temp</p>
+                                        <p class="text-[9px] text-gray-400 font-telemetry mt-1.5">24H RANGE: {{ number_format($dailyMinTemp, 1) }}°C - {{ number_format($dailyMaxTemp, 1) }}°C</p>
+                                    </div>
+                                    <div class="flex items-center gap-1.5">
+                                        <p class="text-2xl font-black font-telemetry text-sky-600">
+                                            <span id="temp-val-{{ $node->id }}">{{ number_format($tempVal, 1) }}</span><span class="text-sm ml-1 text-sky-500">°C</span>
+                                        </p>
+                                        @if($tempTrend == 'rising')
+                                            <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
+                                        @elseif($tempTrend == 'falling')
+                                            <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0v-8m0 8l-8-8-4 4-6-6" /></svg>
+                                        @else
+                                            <svg class="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14" /></svg>
+                                        @endif
+                                    </div>
                                 </div>
-                                <p class="text-2xl font-black font-telemetry text-violet-600">
-                                    <span id="smoke-val-{{ $node->id }}">{{ number_format($smokePercentage, 1) }}</span><span class="text-sm ml-1 text-violet-500">%</span>
-                                </p>
+                                <div id="chart-container-temp-{{ $node->id }}" class="h-28 pb-2 w-full mt-2 transition-all duration-700 ease-in-out">
+                                    <div id="chart-temp-{{ $node->id }}" class="w-full h-full"></div>
+                                </div>
                             </div>
-                            <div class="h-28 pb-2 w-full mt-2">
-                                <div id="chart-smoke-{{ $node->id }}" class="w-full h-full"></div>
+
+                            <div class="bg-gray-50 rounded border border-gray-200 overflow-hidden">
+                                <div class="px-4 pt-4 flex justify-between items-end">
+                                    <div>
+                                        <p class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Particulate/Gas</p>
+                                        <p class="text-[9px] text-gray-400 font-telemetry mt-0.5">RAW: <span id="smoke-raw-{{ $node->id }}">{{ $smokeRaw }}</span></p>
+                                    </div>
+                                    <p class="text-2xl font-black font-telemetry text-violet-600">
+                                        <span id="smoke-val-{{ $node->id }}">{{ number_format($smokePercentage, 1) }}</span><span class="text-sm ml-1 text-violet-500">%</span>
+                                    </p>
+                                </div>
+                                <div id="chart-container-smoke-{{ $node->id }}" class="h-28 pb-2 w-full mt-2 transition-all duration-700 ease-in-out">
+                                    <div id="chart-smoke-{{ $node->id }}" class="w-full h-full"></div>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            @endforeach
+                @endforeach
+            </div>
         </div>
     </div>
 
@@ -357,7 +380,12 @@
 
 <div id="war-room-overlay" class="fixed inset-0 pointer-events-none z-[9998] border-[12px] border-red-600 animate-pulse hidden"></div>
 
-<div x-show="showEmergencyModal" style="display: none;" class="fixed inset-0 z-[9999] flex items-center justify-center" x-transition.opacity>
+<div id="fullscreen-backdrop" onclick="if(isContainerExpanded) toggleContainerFullscreen(); else if(window.expandedNodeId) toggleCardFullscreen(window.expandedNodeId);" class="fixed inset-0 bg-gray-900/90 backdrop-blur-sm z-[9990] hidden opacity-0 transition-opacity duration-300"></div>
+
+<div x-show="showEmergencyModal" style="display: none;" 
+     @start-dispatch.window="isDispatching = true"
+     @close-modal.window="isDispatching = false; showEmergencyModal = false; confirmText = '';"
+     class="fixed inset-0 z-[9999] flex items-center justify-center" x-transition.opacity>
     <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" @click="if(!isDispatching) showEmergencyModal = false"></div>
     <div class="bg-white border border-gray-200 rounded-xl shadow-2xl p-8 max-w-md w-full relative z-10" x-show="showEmergencyModal" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 scale-95 translate-y-4" x-transition:enter-end="opacity-100 scale-100 translate-y-0">
         <h3 class="text-xl font-bold text-gray-900 mb-2 flex items-center gap-3">
@@ -376,16 +404,148 @@
         </div>
     </div>
 </div>
+
+<div id="top-toast" class="fixed top-6 left-1/2 transform -translate-x-1/2 z-[99999] w-full max-w-md hidden transition-all duration-300 opacity-0 -translate-y-4">
+    <div id="toast-bg" class="bg-white border-l-4 shadow-2xl p-4 flex items-start gap-3 rounded-r-lg">
+        <div id="toast-icon" class="shrink-0 mt-0.5"></div>
+        <div class="flex-1">
+            <h4 id="toast-title" class="text-sm font-bold text-gray-900 tracking-tight"></h4>
+            <p id="toast-message" class="text-xs text-gray-600 mt-1 leading-relaxed"></p>
+        </div>
+        <button onclick="hideToast()" class="ml-2 text-gray-400 hover:text-gray-600 transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+    </div>
+</div>
 @endsection
 
 @section('scripts')
-<!-- Restored CDN Link -->
 <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
-
-<!-- Keep Vite for your CSS layout -->
 @vite(['resources/css/app.css'])
 
 <script>
+    // --- FULLSCREEN CONTAINER LOGIC ---
+    let isContainerExpanded = false;
+
+    function toggleContainerFullscreen() {
+        const wrapper = document.getElementById('telemetry-wrapper');
+        const container = document.getElementById('telemetry-container');
+        const backdrop = document.getElementById('fullscreen-backdrop');
+        const btn = document.getElementById('expand-container-btn');
+        const fsTitle = document.getElementById('fullscreen-title');
+        const placeholder = document.getElementById('telemetry-wrapper-placeholder');
+
+        if (!isContainerExpanded) {
+            isContainerExpanded = true;
+            
+            document.body.appendChild(wrapper);
+
+            backdrop.classList.remove('hidden');
+            setTimeout(() => backdrop.classList.remove('opacity-0'), 10);
+
+            wrapper.classList.remove('relative', 'bg-transparent');
+            wrapper.classList.add('is-fullscreen', 'fixed', 'inset-4', 'md:inset-8', 'z-[9999]', 'bg-gray-100', 'p-6', 'md:p-8', 'rounded-xl', 'shadow-[0_0_50px_rgba(0,0,0,0.5)]', 'flex', 'flex-col');
+            
+            container.classList.remove('h-[calc(100vh-25rem)]', 'xl:grid-cols-2');
+            container.classList.add('flex-1', 'xl:grid-cols-3'); 
+            
+            fsTitle.classList.remove('hidden');
+
+            btn.innerHTML = `<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg> Close Grid`;
+            btn.classList.add('bg-red-50', 'text-red-600', 'border-red-200', 'absolute', 'top-6', 'right-8', 'z-[10000]');
+            btn.classList.remove('bg-white', 'text-gray-600');
+            wrapper.appendChild(btn); 
+            
+            window.dispatchEvent(new Event('resize'));
+        } else {
+            isContainerExpanded = false;
+            
+            backdrop.classList.add('opacity-0');
+            setTimeout(() => backdrop.classList.add('hidden'), 300);
+
+            wrapper.classList.remove('is-fullscreen', 'fixed', 'inset-4', 'md:inset-8', 'z-[9999]', 'bg-gray-100', 'p-6', 'md:p-8', 'rounded-xl', 'shadow-[0_0_50px_rgba(0,0,0,0.5)]', 'flex', 'flex-col');
+            wrapper.classList.add('relative', 'bg-transparent');
+
+            container.classList.remove('flex-1', 'xl:grid-cols-3');
+            container.classList.add('h-[calc(100vh-25rem)]', 'xl:grid-cols-2');
+
+            fsTitle.classList.add('hidden');
+
+            btn.innerHTML = `<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg> Expand Grid`;
+            btn.classList.remove('bg-red-50', 'text-red-600', 'border-red-200', 'absolute', 'top-6', 'right-8', 'z-[10000]');
+            btn.classList.add('bg-white', 'text-gray-600');
+            document.getElementById('expand-btn-container').appendChild(btn); 
+
+            placeholder.after(wrapper);
+            
+            window.dispatchEvent(new Event('resize'));
+        }
+    }
+
+    // --- FULLSCREEN INDIVIDUAL CARD LOGIC ---
+    window.expandedNodeId = null;
+
+    function toggleCardFullscreen(nodeId) {
+        const card = document.getElementById(`node-card-${nodeId}`);
+        const placeholder = document.getElementById(`node-placeholder-${nodeId}`);
+        const backdrop = document.getElementById('fullscreen-backdrop');
+        const btn = document.getElementById(`expand-btn-${nodeId}`);
+        const layoutWrapper = document.getElementById(`chart-layout-wrapper-${nodeId}`);
+
+        if (window.expandedNodeId !== nodeId) {
+            if (window.expandedNodeId) return; 
+            
+            window.expandedNodeId = nodeId;
+            document.body.appendChild(card); 
+            
+            backdrop.classList.remove('hidden');
+            setTimeout(() => backdrop.classList.remove('opacity-0'), 10);
+
+            card.classList.remove('relative');
+            card.classList.add('is-fullscreen', 'fixed', 'top-1/2', 'left-1/2', '-translate-x-1/2', '-translate-y-1/2', 'z-[10000]', 'w-[95vw]', 'max-w-7xl', 'shadow-[0_0_50px_rgba(0,0,0,0.5)]');
+
+            // Switch to Horizontal Side-by-Side View
+            layoutWrapper.classList.remove('space-y-4');
+            layoutWrapper.classList.add('grid', 'grid-cols-2', 'gap-6');
+
+            document.getElementById(`chart-container-temp-${nodeId}`).classList.replace('h-28', 'h-[40vh]');
+            document.getElementById(`chart-container-smoke-${nodeId}`).classList.replace('h-28', 'h-[40vh]');
+
+            window.aegisCharts[`temp_${nodeId}`].chart.updateOptions({ chart: { height: '100%' } });
+            window.aegisCharts[`smoke_${nodeId}`].chart.updateOptions({ chart: { height: '100%' } });
+            
+            btn.innerHTML = `<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg> Close`;
+            btn.classList.add('bg-red-50', 'text-red-600', 'border-red-200');
+            btn.classList.remove('bg-gray-100', 'text-gray-600');
+        } else {
+            placeholder.after(card); 
+            
+            if (!isContainerExpanded) {
+                backdrop.classList.add('opacity-0');
+                setTimeout(() => backdrop.classList.add('hidden'), 300);
+            }
+
+            card.classList.remove('is-fullscreen', 'fixed', 'top-1/2', 'left-1/2', '-translate-x-1/2', '-translate-y-1/2', 'z-[10000]', 'w-[95vw]', 'max-w-7xl', 'shadow-[0_0_50px_rgba(0,0,0,0.5)]');
+            card.classList.add('relative');
+
+            // Revert back to Vertical Stack View
+            layoutWrapper.classList.remove('grid', 'grid-cols-2', 'gap-6');
+            layoutWrapper.classList.add('space-y-4');
+
+            document.getElementById(`chart-container-temp-${nodeId}`).classList.replace('h-[40vh]', 'h-28');
+            document.getElementById(`chart-container-smoke-${nodeId}`).classList.replace('h-[40vh]', 'h-28');
+
+            window.aegisCharts[`temp_${nodeId}`].chart.updateOptions({ chart: { height: 80 } });
+            window.aegisCharts[`smoke_${nodeId}`].chart.updateOptions({ chart: { height: 80 } });
+
+            btn.innerHTML = `<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg> Expand`;
+            btn.classList.remove('bg-red-50', 'text-red-600', 'border-red-200');
+            btn.classList.add('bg-gray-100', 'text-gray-600');
+
+            window.expandedNodeId = null;
+        }
+    }
+
     document.addEventListener("DOMContentLoaded", function() {
         var pieOptions = {
             series: {!! json_encode($hazardChartData ?? [1, 0, 0]) !!},
@@ -445,6 +605,38 @@
 
     document.body.addEventListener('click', () => { audioContextInteracted = true; }, { once: true });
 
+    function showToast(type, title, message) {
+        const toast = document.getElementById('top-toast');
+        const bg = document.getElementById('toast-bg');
+        const icon = document.getElementById('toast-icon');
+
+        document.getElementById('toast-title').innerText = title;
+        document.getElementById('toast-message').innerText = message;
+
+        if (type === 'error') {
+            bg.className = 'bg-white border-l-4 border-red-500 shadow-2xl p-4 flex items-start gap-3 rounded-r-lg';
+            icon.innerHTML = '<svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>';
+        } else {
+            bg.className = 'bg-white border-l-4 border-emerald-500 shadow-2xl p-4 flex items-start gap-3 rounded-r-lg';
+            icon.innerHTML = '<svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
+        }
+
+        toast.classList.remove('hidden');
+        setTimeout(() => {
+            toast.classList.remove('opacity-0', '-translate-y-4');
+            toast.classList.add('opacity-100', 'translate-y-0');
+        }, 10);
+
+        setTimeout(hideToast, 6000);
+    }
+
+    function hideToast() {
+        const toast = document.getElementById('top-toast');
+        toast.classList.remove('opacity-100', 'translate-y-0');
+        toast.classList.add('opacity-0', '-translate-y-4');
+        setTimeout(() => toast.classList.add('hidden'), 300);
+    }
+
     @foreach($nodes as $node)
         @php
             $historicalLogs = \App\Models\NodeLog::where('node_id', $node->id)->latest()->limit(25)->get()->reverse()->values();
@@ -501,18 +693,16 @@
             .then(response => response.text())
             .then(html => {
                 let doc = new DOMParser().parseFromString(html, 'text/html');
-                
-                // Update Left Column Metrics
+
                 let newStats = doc.getElementById('stats-container');
                 if (newStats) document.getElementById('stats-container').innerHTML = newStats.innerHTML;
-                
+
                 let oldTicker = document.getElementById('ticker-marquee');
                 let newTicker = doc.getElementById('ticker-marquee');
                 if (newTicker && oldTicker && oldTicker.innerHTML !== newTicker.innerHTML) {
                     oldTicker.innerHTML = newTicker.innerHTML;
                 }
 
-                // Update Right Column Live Diagnostics
                 let oldHostCard = document.getElementById('host-diagnostics-card');
                 let newHostCard = doc.getElementById('host-diagnostics-card');
                 if (oldHostCard && newHostCard) {
@@ -550,11 +740,11 @@
                     if (dataDiv) {
                         let newTemp = parseFloat(dataDiv.dataset.temp);
                         let newSmoke = parseFloat(dataDiv.dataset.smoke);
-                        
+
                         document.getElementById('temp-val-{{ $node->id }}').innerText = newTemp.toFixed(1);
                         document.getElementById('smoke-val-{{ $node->id }}').innerText = newSmoke.toFixed(1);
                         document.getElementById('smoke-raw-{{ $node->id }}').innerText = dataDiv.dataset.smokeraw;
-                        
+
                         document.getElementById('node-header-{{ $node->id }}').innerHTML = doc.getElementById('node-header-{{ $node->id }}').innerHTML;
                         let tempHeaderDiv = doc.getElementById('temp-header-{{ $node->id }}');
                         if (tempHeaderDiv) document.getElementById('temp-header-{{ $node->id }}').innerHTML = doc.getElementById('temp-header-{{ $node->id }}').innerHTML;
@@ -568,8 +758,21 @@
                         smokeObj.data.push(newSmoke);
                         if (smokeObj.data.length > maxDataPoints) smokeObj.data.shift();
                         smokeObj.chart.updateSeries([{ data: smokeObj.data }]);
+
+                        // Protect the layout integrity if this specific card is currently expanded
+                        if (window.expandedNodeId != '{{ $node->id }}') {
+                            document.getElementById('node-card-{{ $node->id }}').className = doc.getElementById('node-card-{{ $node->id }}').className;
+                        }
                         
-                        document.getElementById('node-card-{{ $node->id }}').className = doc.getElementById('node-card-{{ $node->id }}').className;
+                        // Re-apply button text if it gets overwritten during polling
+                        if (window.expandedNodeId == '{{ $node->id }}') {
+                            let btn = document.getElementById('expand-btn-{{ $node->id }}');
+                            if(btn) {
+                                btn.innerHTML = `<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg> Close`;
+                                btn.classList.add('bg-red-50', 'text-red-600', 'border-red-200');
+                                btn.classList.remove('bg-gray-100', 'text-gray-600');
+                            }
+                        }
                     }
                 @endforeach
             })
@@ -578,11 +781,8 @@
 
     document.getElementById('authorizeOverrideBtn').addEventListener('click', function(e) {
         e.preventDefault();
-        
-        // Let Alpine.js handle the UI state swap to "Sending"
-        const alpineComponent = document.querySelector('[x-show="showEmergencyModal"]').__x;
-        if (alpineComponent) alpineComponent.$data.isDispatching = true;
-        
+        window.dispatchEvent(new Event('start-dispatch'));
+
         const btn = this;
         btn.disabled = true;
 
@@ -597,24 +797,19 @@
         })
         .then(response => response.json().then(data => ({status: response.status, body: data})))
         .then(res => {
-            // Restore Alpine UI State
-            if (alpineComponent) {
-                alpineComponent.$data.isDispatching = false;
-                alpineComponent.$data.showEmergencyModal = false; // Close modal automatically
-            }
+            window.dispatchEvent(new Event('close-modal'));
             btn.disabled = false;
 
             if (res.status === 503 || !res.body.success) {
-                alert("⚠️ DISPATCH FAILED\n\n" + res.body.message);
+                showToast('error', 'DISPATCH FAILED', res.body.message);
             } else {
-                alert("✅ SUCCESS\n\n" + res.body.message);
+                showToast('success', 'PROTOCOL OVERRIDE SUCCESS', res.body.message);
             }
         })
         .catch(error => {
-            // Handle local network loss
-            if (alpineComponent) alpineComponent.$data.isDispatching = false;
+            window.dispatchEvent(new Event('close-modal'));
             btn.disabled = false;
-            alert("⚠️ NETWORK ERROR\n\nYour browser cannot reach the local server.");
+            showToast('error', 'NETWORK ERROR', 'Your browser cannot reach the local server. Check your connection.');
         });
     });
 </script>

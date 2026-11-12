@@ -146,15 +146,22 @@
                     </select>
                 </div>
                 
+                <!-- SECURE PHONE INPUT -->
                 <div>
                     <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Phone Number</label>
-                    <input type="text" name="phone" placeholder="+63 912 345 6789" 
+                    <input type="tel" name="phone" required placeholder="09123456789" maxlength="11" pattern="[0-9]{11}" oninput="this.value = this.value.replace(/[^0-9]/g, '')"
                            class="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-sky-500 focus:border-sky-500 p-2.5 font-telemetry">
                 </div>
                 
+                <!-- SECURE PUSHOVER API KEY INPUT -->
                 <div>
                     <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Pushover User Key</label>
                     <input type="text" name="pushover_key" required placeholder="Paste 30-character key here..." 
+                           minlength="30" 
+                           maxlength="30" 
+                           pattern="[A-Za-z0-9]{30}" 
+                           title="Pushover keys must be exactly 30 alphanumeric characters"
+                           oninput="this.value = this.value.replace(/[^A-Za-z0-9]/g, '')"
                            class="w-full bg-white border border-sky-300 text-gray-900 text-sm rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 p-2.5 font-telemetry font-bold shadow-sm">
                 </div>
                 

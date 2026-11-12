@@ -26,10 +26,18 @@
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" /></svg>
             </div>
         </div>
+        
+        @php
+            // True hardware capacity of Proxmox LXC 102 (8GB)
+            $maxCapacity = 8192; 
+            $currentSize = floatval($totalSizeFormatted ?? 0);
+            $percentage = min(100, ($currentSize / $maxCapacity) * 100);
+        @endphp
         <div class="w-full bg-gray-100 rounded-full h-1.5 mb-2">
-            <div class="bg-sky-500 h-1.5 rounded-full" style="width: 15%"></div>
+            <div class="bg-sky-500 h-1.5 rounded-full transition-all duration-500" style="width: {{ $percentage }}%"></div>
         </div>
-        <p class="text-[10px] text-gray-500 font-medium">Automated {{ $retentionDays }}-day retention pruning is active.</p>
+        
+        <p class="text-[10px] text-gray-500 font-medium">Automated {{ $retentionDays ?? '90' }}-day retention pruning is active.</p>
     </div>
 
     <!-- AWS Replication Status -->

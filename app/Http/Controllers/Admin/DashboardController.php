@@ -195,7 +195,7 @@ class DashboardController extends Controller
                     'token' => env('PUSHOVER_APP_TOKEN'), 
                     'user' => $key,
                     'message' => "🚨 MANUAL OVERRIDE AUTHORIZED 🚨\nEvacuate facility immediately. This is not a drill.",
-                    'title' => 'Aegis-Guard (CRITICAL)',
+                    'title' => 'FireNet (CRITICAL)',
                     'sound' => 'UDRRMC_SIREN',
                     'priority' => 2,
                     'retry' => 30,
@@ -262,8 +262,8 @@ class DashboardController extends Controller
         Http::asForm()->post('https://api.pushover.net/1/messages.json', [
             'token' => env('PUSHOVER_APP_TOKEN'),
             'user' => $contact->pushover_key ?? $contact->user_key,
-            'message' => "TEST PING: Aegis-Guard communications check. System is nominal.",
-            'title' => 'Aegis-Guard (TEST)',
+            'message' => "TEST PING: FireNet communications check. System is nominal.",
+            'title' => 'FireNet (TEST)',
             'sound' => 'pushover',
             'priority' => 0,
         ]);
